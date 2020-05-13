@@ -30,13 +30,22 @@ const pack
   }
 
 export default class Channel extends EventTarget {
+  #id
   #ws
   #once_ack
   #once_chunk
 
-  constructor(ws) {
+  #log
+
+  constructor(
+      ws,
+      id,
+      log,
+  ) {
     super()
+    this.#id = id
     this.#ws = ws
+    this.#log = log.extend(`channel<${ id }>`)
     this.#once_ack = async () =>
       new Promise((resolve, reject) => {
         this.addEventListener(
@@ -87,39 +96,53 @@ export default class Channel extends EventTarget {
     const packet
     = pack(
         FRAMES.END,
-        count,
+        this.#id,
         new Uint8Array(),
     )
 
-    this.#ws.send(packet)
+    this.#ws.send(packet, true)
     this.dispatchEvent(new CloseEvent(this))
   }
 
   async write(chunk) {
+    this.#log('writing some datas')
+
     const ack = this.#once_ack()
     const packet
     = pack(
         FRAMES.DATA,
-        count,
+        this.#id,
         chunk,
     )
 
-    this.#ws.send(packet)
+    this.#log('sending datas')
+    this.#ws.send(packet, true)
+    this.#log('waiting ack')
     // wait for ack
     return ack
   }
 
   async read() {
-    const data = this.#once_chunk()
+    this.#log('reading some datas')
+
+    const chunk = this.#once_chunk()
     const packet
     = pack(
         FRAMES.ACK,
-        count,
+        this.#id,
         new Uint8Array(),
     )
 
-    this.#ws.send(packet)
+    this.#log('sending ack')
+    this.#ws.send(packet, true)
+
     // wait for chunk
+    const { data } = await chunk
+
+    this.#log('waiting datas %O', data)
+    setImmediate(() => {
+      console.log(data)
+    })
     return data
   }
 

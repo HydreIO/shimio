@@ -3,13 +3,10 @@ import {
 } from './constant.js'
 
 export default raw_packet => {
-  const [event] = new Uint8Array(
-      raw_packet, 0, 1,
-  )
+  const view = new DataView(raw_packet)
+  const event = view.getUint8(0)
   // 4294967295 channels per connection
-  const [channel_id] = new Uint32Array(
-      raw_packet, 1, 5,
-  )
+  const channel_id = view.getUint32(1)
 
   if (event === undefined || channel_id === undefined) {
     const error = new Error('uh oh, received an illegal packet')

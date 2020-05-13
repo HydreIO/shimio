@@ -3,7 +3,10 @@ import parse from './parse.js'
 import Channel from './Channel.js'
 import compose from 'koa-compose'
 import { EventEmitter } from 'events'
-import { SOCKET_CODES } from './constant.js'
+import {
+  SOCKET_CODES, FRAMES,
+} from './constant.js'
+import debug from 'debug'
 
 export default class ShimioServer {
   #app
@@ -14,6 +17,8 @@ export default class ShimioServer {
   #closing
   #middleware = []
   #clients = new Set()
+
+  #log = debug('shimio').extend('server')
 
   constructor({
     port = 3000,
@@ -64,7 +69,7 @@ export default class ShimioServer {
 
             that.#clients.add(current)
             current.emitter = new EventEmitter()
-            current.channels = new Set()
+            current.channels = new Map()
 
             await middleware({
               ws: new Proxy(current.emitter, {
@@ -80,12 +85,12 @@ export default class ShimioServer {
           close(ws) {
             that.#clients.delete(ws)
           },
-          message(
-              ws,
-              message, binary,
+          async message(
+              ws, message, binary,
           ) {
             if (!that.#clients.has(ws)) return
             if (!binary) {
+              this.#log('not binary, exit')
               ws.end(SOCKET_CODES.CLOSE_UNSUPPORTED)
               return
             }
@@ -100,10 +105,22 @@ export default class ShimioServer {
                 channels, emitter,
               } = ws
 
-              if (!channels.has(channel_id)) {
-                const channel = new Channel(ws)
+              that.#log(
+                  'receiving %O %O', Object
+                      .entries(FRAMES)
+                      .find(([, v]) => v === event)[0], chunk,
+              )
+              that.#log('for channel', channel_id)
 
-                channels.add(channel)
+              if (!channels.has(channel_id)) {
+                const channel = new Channel(
+                    ws,
+                    channel_id,
+                    that.#log,
+                )
+
+                that.#log(`doesn't exist, creating channel`, channel_id)
+                channels.set(channel_id, channel)
                 emitter.emit('channel', channel)
               }
 
@@ -111,6 +128,7 @@ export default class ShimioServer {
                   .get(channel_id)
                   .on_message(event, chunk)
             } catch (error) {
+              console.error(error)
               if (error.code)
                 ws.end(error.code)
               else throw error

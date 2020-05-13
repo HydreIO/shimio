@@ -1,11 +1,13 @@
 import stream from 'stream'
 import { promisify } from 'util'
-
+import events from 'events'
 import {
   Client,
   Server,
 } from '../src/index.js'
+import debug from 'debug'
 
+const log = debug('shimio').extend('test')
 const pipeline = promisify(stream.pipeline)
 
 let port = 20000
@@ -100,6 +102,38 @@ export default class {
       should : `include a write function`,
       because: channel.write.constructor.name,
       is     : 'AsyncFunction',
+    })
+  }
+
+  async ['Dear Nagle'](affirmation) {
+    const affirm = affirmation(1)
+    const through = new stream.PassThrough({ objectMode: true })
+
+    this.#server.use(({ ws }) => {
+      ws.on('channel', async channel => {
+        through.write(await channel.read())
+      })
+    })
+
+    await this.#server.listen()
+    await this.#client.connect()
+
+    const room_a = this.#client.open_channel()
+    const room_b = this.#client.open_channel()
+    const data = Uint8Array.of(120)
+    const read = events.once(through, 'data')
+
+    log('room_a.write(data)')
+    await room_a.write(data)
+
+    const [datas] = await read
+
+    log('%O', datas)
+    affirm({
+      that   : 'a client',
+      should : 'be able to send message through a channel',
+      because: Buffer.from(datas).toString(),
+      is     : 'x',
     })
   }
 }

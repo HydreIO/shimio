@@ -3,6 +3,7 @@ import {
   SOCKET_OPEN,
 } from './constant.js'
 import parse from './parse.js'
+import debug from 'debug'
 
 // can't define browser websocket in node
 // eslint-disable-next-line no-use-before-define
@@ -17,6 +18,8 @@ export default class ShimioClient {
   #keep_alive
   #notify_close
   #on_message
+
+  #log = debug('shimio').extend('client')
 
   constructor({
     host,
@@ -84,7 +87,6 @@ export default class ShimioClient {
       this.#ws.addEventListener('error', reject)
     })
     this.#channel_count = -1
-    this.#ws.send('salut')
     this.#keep_alive()
   }
 
@@ -96,7 +98,11 @@ export default class ShimioClient {
 
   open_channel() {
     const count = ++this.#channel_count
-    const channel = new Channel(this.#ws)
+    const channel = new Channel(
+        this.#ws,
+        count,
+        this.#log,
+    )
 
     this.#channels.set(count, channel)
     return channel

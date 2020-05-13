@@ -29,6 +29,7 @@
   },
   "homepage": "https://github.com/hydreio/shimio#readme",
   "dependencies": {
+    "debug": "^4.1.1",
     "koa-compose": "^4.1.0",
     "uWebSockets.js": "github:uNetworking/uWebSockets.js#v17.4.0"
   },
