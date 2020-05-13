@@ -1,0 +1,46 @@
+{
+  "name": "@hydre/shimio",
+  "version": "1.0.0",
+  "description": "A blazing fast websocket multiplexing curative therapy",
+  "type": "module",
+  "scripts": {
+    "test": "node test/index.js",
+    "coverage": "c8 --check-coverage node test/index.js",
+    "lint": "prettier-eslint $PWD/\"**/*.js\" --list-different && eslint --color .",
+    "format": "prettier-eslint $PWD/\"**/*.js\" --print-width 60 --write",
+    "postversion": "git push && git push --tags"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hydreio/shimio.git"
+  },
+  "author": "Hydre",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/hydreio/shimio/issues"
+  },
+  "keywords": [
+    "schimio",
+    "websocket",
+    "multiplexing"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "homepage": "https://github.com/hydreio/shimio#readme",
+  "dependencies": {
+    "koa-compose": "^4.1.0",
+    "uWebSockets.js": "github:uNetworking/uWebSockets.js#v17.4.0"
+  },
+  "devDependencies": {
+    "@hydre/doubt": "^6.0.2",
+    "@sidy/eslint-config-sidy": "^1.4.3",
+    "babel-eslint": "^10.1.0",
+    "c8": "^7.1.2",
+    "eslint": "^7.0.0",
+    "eslint-plugin-unicorn": "^19.0.1",
+    "prettier-eslint-cli": "^5.0.0",
+    "tap-spec-emoji": "^6.1.2",
+    "ws": "^7.3.0"
+  }
+}
