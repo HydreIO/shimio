@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/github/workflow/status/hydreio/shimio/CI?logo=Github&style=for-the-badge" />
 </p>
 
-<h3 align=center>A blazing fast websocket multiplexing therapy build on uWs</h3>
+<h3 align=center>A blazing fast websocket multiplexing therapy built on uWs</h3>
 
 ## Install
 
