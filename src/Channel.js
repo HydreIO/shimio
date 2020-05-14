@@ -1,33 +1,7 @@
 // globalThis should contains stuff
 /* eslint-disable no-undef */
 import { FRAMES } from './constant.js'
-
-// these seems dumb to me but meh that's how web works
-import AckEvent from './events/AckEvent.js'
-import EndEvent from './events/EndEvent.js'
-import DataEvent from './events/DataEvent.js'
-import CloseEvent from './events/CloseEvent.js'
-
-const pack
-  = (
-      // uInt8
-      event,
-      // uInt32
-      id,
-      // uInt8Array
-      chunk,
-  ) => {
-    const buffer = new ArrayBuffer(5 + chunk.byteLength)
-    const view = new DataView(buffer)
-
-    view.setUint8(0, event)
-    view.setUint32(1, id)
-
-    const packet = new Uint8Array(buffer)
-
-    packet.set(chunk, 5)
-    return packet
-  }
+import serialize from './serialize.js'
 
 export default class Channel extends EventTarget {
   #id
@@ -36,56 +10,42 @@ export default class Channel extends EventTarget {
   #once_chunk
 
   #log
+  // we don't want to send an ack on the first read
+  #first_read = true
+  #closed
+
+  #resolve_write
+  #reject_write
+  #resolve_read
+  #reject_read
 
   constructor(
-      ws,
-      id,
-      log,
+      ws, id, log,
   ) {
     super()
     this.#id = id
     this.#ws = ws
     this.#log = log.extend(`channel<${ id }>`)
-    this.#once_ack = async () =>
-      new Promise((resolve, reject) => {
-        this.addEventListener(
-            'ack', resolve, { once: true },
-        )
-        this.addEventListener(
-            // we only want ack
-            'data', reject, { once: true },
-        )
-        this.addEventListener(
-            'end', reject, { once: true },
-        )
-      })
-    this.#once_chunk = async () =>
-      new Promise((resolve, reject) => {
-        this.addEventListener(
-            'data', resolve, { once: true },
-        )
-        this.addEventListener(
-            // we only want datas
-            'ack', reject, { once: true },
-        )
-        this.addEventListener(
-            'end', reject, { once: true },
-        )
-      })
   }
 
-  on_message(event, array) {
+  on_message(
+      event, array,
+  ) {
     switch (event) {
       case FRAMES.ACK:
-        this.dispatchEvent(new AckEvent(this))
+        this.#log('receiving ACK')
+        this.#resolve_write()
         break
 
       case FRAMES.DATA:
-        this.dispatchEvent(new DataEvent(array, this))
+        this.#log('receiving DATA')
+        this.#resolve_read(array)
         break
 
       case FRAMES.END:
-        this.dispatchEvent(new EndEvent(this))
+        this.#log('receiving END')
+        this.#reject_read()
+        this.#reject_write()
         break
 
       // no default
@@ -93,80 +53,97 @@ export default class Channel extends EventTarget {
   }
 
   close() {
-    const packet
-    = pack(
+    if (this.#closed) return
+    this.#closed = true
+    this.#reject_read()
+    this.#reject_write()
+
+    const packet = serialize(
         FRAMES.END,
         this.#id,
         new Uint8Array(),
     )
 
-    this.#ws.send(packet, true)
-    this.dispatchEvent(new CloseEvent(this))
+    this.#log('sending end')
+    this.#ws.send(
+        packet,
+        true,
+    )
   }
 
   async write(chunk) {
-    this.#log('writing some datas')
-
-    const ack = this.#once_ack()
-    const packet
-    = pack(
+    const that = this
+    const ack = new Promise((
+        resolve,
+        reject,
+    ) => {
+      that.#resolve_write = resolve
+      that.#reject_write = reject
+    })
+    const packet = serialize(
         FRAMES.DATA,
         this.#id,
         chunk,
     )
 
-    this.#log('sending datas')
-    this.#ws.send(packet, true)
-    this.#log('waiting ack')
-    // wait for ack
+    this.#log(
+        'sending datas %O',
+        chunk,
+    )
+    this.#ws.send(
+        packet,
+        true,
+    )
+    this.#log('awaiting ack')
     return ack
   }
 
   async read() {
-    this.#log('reading some datas')
-
-    const chunk = this.#once_chunk()
-    const packet
-    = pack(
-        FRAMES.ACK,
-        this.#id,
-        new Uint8Array(),
-    )
-
-    this.#log('sending ack')
-    this.#ws.send(packet, true)
-
-    // wait for chunk
-    const { data } = await chunk
-
-    this.#log('waiting datas %O', data)
-    setImmediate(() => {
-      console.log(data)
+    const that = this
+    const chunk = new Promise((
+        resolve,
+        reject,
+    ) => {
+      that.#resolve_read = resolve
+      that.#reject_read = reject
     })
-    return data
+
+    // sending ack only for all others reads
+    if (this.#first_read) this.#first_read = false
+    else {
+      const packet = serialize(
+          FRAMES.ACK,
+          this.#id,
+          new Uint8Array(),
+      )
+
+      this.#log('sending ack')
+      this.#ws.send(
+          packet,
+          true,
+      )
+    }
+
+    this.#log('listening for datas')
+    return chunk
   }
 
-  async writeable(source) {
+  async writable(source) {
     try {
-      for await (const chunk of source)
-        await this.write(chunk)
+      for await (const chunk of source) await this.write(chunk)
+      this.#log('normal end writable')
       this.close()
-    } catch {
-      this.dispatchEvent(new CloseEvent(this))
-    }
+    } catch { }
   }
 
   async *readable() {
     try {
-      for (; ;)
-        yield await this.read()
-    } catch {
-      this.dispatchEvent(new CloseEvent(this))
-    }
+      for (;;) yield await this.read()
+    } catch { }
   }
 
-  async [Symbol.asyncIterator](source) {
-    this.writeable(source)
-    return this.readable()
+  async *passthrough(source) {
+    this.writable(source)
+    yield* this.readable()
   }
 }
