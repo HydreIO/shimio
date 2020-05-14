@@ -6,7 +6,7 @@
   "scripts": {
     "test": "node test/index.js",
     "coverage": "c8 --check-coverage node test/index.js",
-    "lint": "prettier-eslint $PWD/\"**/*.js\" --list-different && eslint --color .",
+    "lint": "prettier-eslint $PWD/\"**/*.js\" --print-width 60 --list-different && eslint --color .",
     "format": "prettier-eslint $PWD/\"**/*.js\" --print-width 60 --write",
     "postversion": "git push && git push --tags"
   },

@@ -16,7 +16,6 @@ export default raw_packet => {
   // 4294967295 channels per connection
   const channel_id = view.getUint32(1)
 
-
   return {
     event,
     channel_id,

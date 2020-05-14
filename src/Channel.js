@@ -74,8 +74,7 @@ export default class Channel extends EventTarget {
   async write(chunk) {
     const that = this
     const ack = new Promise((
-        resolve,
-        reject,
+        resolve, reject,
     ) => {
       that.#resolve_write = resolve
       that.#reject_write = reject
@@ -101,8 +100,7 @@ export default class Channel extends EventTarget {
   async read() {
     const that = this
     const chunk = new Promise((
-        resolve,
-        reject,
+        resolve, reject,
     ) => {
       that.#resolve_read = resolve
       that.#reject_read = reject
@@ -130,16 +128,17 @@ export default class Channel extends EventTarget {
 
   async writable(source) {
     try {
-      for await (const chunk of source) await this.write(chunk)
+      for await (const chunk of source)
+        await this.write(chunk)
       this.#log('normal end writable')
       this.close()
-    } catch { }
+    } catch {}
   }
 
   async *readable() {
     try {
       for (;;) yield await this.read()
-    } catch { }
+    } catch {}
   }
 
   async *passthrough(source) {

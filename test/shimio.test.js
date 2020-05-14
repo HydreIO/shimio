@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import stream from 'stream'
 import { promisify } from 'util'
 import events from 'events'
@@ -75,9 +76,7 @@ export default class {
 
     await failing_client.connect()
 
-    failing_client
-        .raw_socket
-        .send('yo')
+    failing_client.raw_socket.send('yo')
 
     await new Promise(resolve => setTimeout(
         resolve,
@@ -144,7 +143,6 @@ export default class {
       because: channel.passthrough.constructor.name,
       is     : 'AsyncGeneratorFunction',
     })
-
 
     await this.#server.listen()
     await this.#client.connect()

@@ -88,6 +88,7 @@ export default class ShimioServer {
                         )
                       }
 
+
                       return Reflect.get(
                           target,
                           property,
@@ -145,12 +146,10 @@ export default class ShimioServer {
                 )
               }
 
-              channels
-                  .get(channel_id)
-                  .on_message(
-                      event,
-                      chunk,
-                  )
+              channels.get(channel_id).on_message(
+                  event,
+                  chunk,
+              )
             } catch (error) {
               console.error(error)
               if (error.code) ws.end(error.code)
