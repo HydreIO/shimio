@@ -4,6 +4,7 @@ import Channel from './Channel.js'
 import compose from 'koa-compose'
 import { EventEmitter } from 'events'
 import { SOCKET_CODES } from './constant.js'
+import debug from 'debug'
 
 export default class ShimioServer {
   #app
@@ -14,6 +15,8 @@ export default class ShimioServer {
   #closing
   #middleware = []
   #clients = new Set()
+
+  #log = debug('shimio').extend('server')
 
   constructor({
     port = 3000,
@@ -42,7 +45,10 @@ export default class ShimioServer {
     const app = this.#app
     const port = this.#port
     const socket_stuct = await new Promise(resolve => {
-      app.listen(port, resolve)
+      app.listen(
+          port,
+          resolve,
+      )
     })
 
     if (socket_stuct) {
@@ -53,70 +59,100 @@ export default class ShimioServer {
     const that = this
     const middleware = compose(this.#middleware)
 
-    this
-        .#app
-        .ws(this.#path, {
+    this.#app.ws(
+        this.#path,
+        {
           ...this.#uws_options,
-          async open(ws, request) {
+          async open(
+              ws, request,
+          ) {
             if (that.#closing) ws.close()
 
             const current = ws
 
             that.#clients.add(current)
             current.emitter = new EventEmitter()
-            current.channels = new Set()
+            current.channels = new Map()
 
             await middleware({
-              ws: new Proxy(current.emitter, {
-                get(target, property) {
-                  if (property in ws)
-                    return Reflect.get(ws, property)
-                  return Reflect.get(target, property)
-                },
-              }),
+              ws: new Proxy(
+                  current.emitter,
+                  {
+                    get(
+                        target, property,
+                    ) {
+                      if (property in ws) {
+                        return Reflect.get(
+                            ws,
+                            property,
+                        )
+                      }
+
+
+                      return Reflect.get(
+                          target,
+                          property,
+                      )
+                    },
+                  },
+              ),
               request,
             })
           },
           close(ws) {
             that.#clients.delete(ws)
           },
-          message(
-              ws,
-              message, binary,
+          async message(
+              ws, message, binary,
           ) {
             if (!that.#clients.has(ws)) return
             if (!binary) {
+              that.#log('not binary, exit')
               ws.end(SOCKET_CODES.CLOSE_UNSUPPORTED)
               return
             }
 
             try {
               const {
-                event,
-                channel_id,
-                chunk,
+                event, channel_id, chunk,
               } = parse(message)
               const {
                 channels, emitter,
               } = ws
 
-              if (!channels.has(channel_id)) {
-                const channel = new Channel(ws)
+              that.#log(
+                  'receiving %O',
+                  event,
+              )
 
-                channels.add(channel)
-                emitter.emit('channel', channel)
+              if (!channels.has(channel_id)) {
+                const channel = new Channel(
+                    ws,
+                    channel_id,
+                    that.#log,
+                )
+
+                channels.set(
+                    channel_id,
+                    channel,
+                )
+                emitter.emit(
+                    'channel',
+                    channel,
+                )
               }
 
-              channels
-                  .get(channel_id)
-                  .on_message(event, chunk)
+              channels.get(channel_id).on_message(
+                  event,
+                  chunk,
+              )
             } catch (error) {
-              if (error.code)
-                ws.end(error.code)
-              else throw error
+              if (error.code) ws.end(error.code)
+              else ws.end(SOCKET_CODES.CLOSE_PROTOCOL_ERROR)
             }
           },
-        })
+        },
+    )
   }
 
   disconnect_clients() {

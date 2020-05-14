@@ -6,7 +6,9 @@ export default class Event {
    * @param {Object} data
    * A reference to the target to which the event was dispatched
    */
-  constructor(type, target) {
+  constructor(
+      type, target,
+  ) {
     this.target = target
     this.type = type
   }

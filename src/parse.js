@@ -3,20 +3,8 @@ import {
 } from './constant.js'
 
 export default raw_packet => {
-  const [event] = new Uint8Array(
-      raw_packet, 0, 1,
-  )
-  // 4294967295 channels per connection
-  const [channel_id] = new Uint32Array(
-      raw_packet, 1, 5,
-  )
-
-  if (event === undefined || channel_id === undefined) {
-    const error = new Error('uh oh, received an illegal packet')
-
-    error.code = SOCKET_CODES.CLOSE_PROTOCOL_ERROR
-    throw error
-  }
+  const view = new DataView(raw_packet)
+  const event = view.getUint8(0)
 
   if (!Object.values(FRAMES).includes(event)) {
     const error = new Error('uh oh, received an illegal frame')
@@ -25,9 +13,15 @@ export default raw_packet => {
     throw error
   }
 
+  // 4294967295 channels per connection
+  const channel_id = view.getUint32(1)
+
   return {
     event,
     channel_id,
-    chunk: new Uint8Array(raw_packet, 5),
+    chunk: new Uint8Array(
+        raw_packet,
+        5,
+    ).slice(0),
   }
 }
