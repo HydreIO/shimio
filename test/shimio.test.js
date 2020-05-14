@@ -147,7 +147,6 @@ export default class {
     await this.#server.listen()
     await this.#client.connect()
 
-    console.log('send')
     this.#client.raw_socket.send(Uint8Array.of(1))
 
     await new Promise(resolve => setTimeout(

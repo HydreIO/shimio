@@ -105,10 +105,6 @@ export default class ShimioServer {
           async message(
               ws, message, binary,
           ) {
-            console.log(
-                'receiveddd',
-                message,
-            )
             if (!that.#clients.has(ws)) return
             if (!binary) {
               that.#log('not binary, exit')
@@ -151,7 +147,6 @@ export default class ShimioServer {
                   chunk,
               )
             } catch (error) {
-              console.error(error)
               if (error.code) ws.end(error.code)
               else ws.end(SOCKET_CODES.CLOSE_PROTOCOL_ERROR)
             }
