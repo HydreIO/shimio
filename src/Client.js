@@ -48,6 +48,7 @@ export default class ShimioClient {
       if (!channel)
         throw new Error(`received unknown channel with id ${ channel_id }`)
 
+
       channel.on_message(
           event,
           chunk,

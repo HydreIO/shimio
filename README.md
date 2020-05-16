@@ -11,6 +11,8 @@
 
 <h3 align=center>A blazing fast websocket multiplexing therapy built on uWs</h3>
 
+> This readme is a WIP
+
 ## Install
 
 ```sh
@@ -22,21 +24,14 @@ npm install @hydre/shimio
 see /example/index.js for client usage in node
 
 ```js
-import {
-  Server, Client,
-} from '../src/index.js'
+import { Server, Client } from '../src/index.js'
 import stream from 'stream'
 import { promisify } from 'util'
 import fs from 'fs'
 
 const pipeline = promisify(stream.pipeline)
-const read = fs.createReadStream(
-    'example/foo.jpg',
-    {
-      highWaterMark: 2000,
-    },
-)
-const write = fs.createWriteStream('example/bar.jpg')
+const read = fs.createReadStream('foo.jpg', { highWaterMark: 2000 })
+const write = fs.createWriteStream('bar.jpg')
 const main = async () => {
   const client = new Client({ host: 'ws://0.0.0.0:3000' })
   const server = new Server({

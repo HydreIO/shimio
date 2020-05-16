@@ -35,7 +35,7 @@
     "uWebSockets.js": "github:uNetworking/uWebSockets.js#v17.4.0"
   },
   "devDependencies": {
-    "@hydre/doubt": "^6.0.2",
+    "@hydre/doubt": "^6.1.0",
     "@sidy/eslint-config-sidy": "^1.4.6",
     "babel-eslint": "^10.1.0",
     "c8": "^7.1.2",
