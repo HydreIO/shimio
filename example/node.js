@@ -29,6 +29,7 @@ const main = async () => {
     ws,
     // eslint-disable-next-line no-unused-vars
     request,
+    next,
   }) => {
     ws.on(
         'channel',
@@ -39,6 +40,7 @@ const main = async () => {
           )
         },
     )
+    next()
   })
 
   await server.listen()
