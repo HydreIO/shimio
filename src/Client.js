@@ -19,9 +19,7 @@ export default class ShimioClient {
 
   #log = debug('shimio').extend('client')
 
-  constructor({
-    host, timeout = 31_000,
-  }) {
+  constructor({ host, timeout = 31_000 }) {
     this.#host = host
     this.#timeout = timeout
 
@@ -31,28 +29,19 @@ export default class ShimioClient {
       const ws = this.#ws
 
       return new Promise(resolve => {
-        ws.addEventListener(
-            'pong',
-            resolve,
-            { once: true },
-        )
+        ws.addEventListener('pong', resolve, { once: true })
       })
     }
 
     this.#on_message = ({ data }) => {
-      const {
-        event, channel_id, chunk,
-      } = parse(data)
+      const { event, channel_id, chunk } = parse(data)
       const channel = this.#channels.get(channel_id)
 
       if (!channel)
         throw new Error(`received unknown channel with id ${ channel_id }`)
 
 
-      channel.on_message(
-          event,
-          chunk,
-      )
+      channel.on_message(event, chunk)
     }
 
     this.#keep_alive = async () => {
@@ -64,13 +53,8 @@ export default class ShimioClient {
       try {
         await Promise.race([
           this.#pong_once(),
-          new Promise((
-              _, reject,
-          ) =>
-            setTimeout(
-                reject,
-                race_timeout,
-            )),
+          new Promise((_, reject) =>
+            setTimeout(reject, race_timeout)),
         ])
         setTimeout(
             this.#keep_alive.bind(this),
@@ -99,21 +83,13 @@ export default class ShimioClient {
     this.#ws = new WebSocket(this.#host)
     this.#ws.binaryType = 'arraybuffer'
     this.#channels = new Map()
-    await new Promise((
-        resolve, reject,
-    ) => {
+    await new Promise((resolve, reject) => {
       this.#ws.addEventListener(
           'message',
           this.#on_message.bind(this),
       )
-      this.#ws.addEventListener(
-          'open',
-          resolve,
-      )
-      this.#ws.addEventListener(
-          'error',
-          reject,
-      )
+      this.#ws.addEventListener('open', resolve)
+      this.#ws.addEventListener('error', reject)
     })
     this.#channel_count = -1
     this.#keep_alive()
@@ -121,25 +97,15 @@ export default class ShimioClient {
 
   disconnect() {
     if (!this.connected) return
-    this.#ws.close(
-        1000,
-        'closed by client',
-    )
+    this.#ws.close(1000, 'closed by client')
     this.#ws = undefined
   }
 
   open_channel() {
     const count = ++this.#channel_count
-    const channel = new Channel(
-        this.#ws,
-        count,
-        this.#log,
-    )
+    const channel = new Channel(this.#ws, count, this.#log)
 
-    this.#channels.set(
-        count,
-        channel,
-    )
+    this.#channels.set(count, channel)
     return channel
   }
 }

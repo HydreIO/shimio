@@ -1,6 +1,4 @@
-import {
-  SOCKET_CODES, FRAMES,
-} from './constant.js'
+import { SOCKET_CODES, FRAMES } from './constant.js'
 
 export default raw_packet => {
   const view = new DataView(raw_packet)
@@ -19,9 +17,6 @@ export default raw_packet => {
   return {
     event,
     channel_id,
-    chunk: new Uint8Array(
-        raw_packet,
-        5,
-    ).slice(0),
+    chunk: new Uint8Array(raw_packet, 5).slice(0),
   }
 }

@@ -1,17 +1,12 @@
-import {
-  Server, Client,
-} from '../src/index.js'
+import { Server, Client } from '../src/index.js'
 import stream from 'stream'
 import { promisify } from 'util'
 import fs from 'fs'
 
 const pipeline = promisify(stream.pipeline)
-const read = fs.createReadStream(
-    'example/foo.jpg',
-    {
-      highWaterMark: 2000,
-    },
-)
+const read = fs.createReadStream('example/foo.jpg', {
+  highWaterMark: 2000,
+})
 const write = fs.createWriteStream('example/bar.jpg')
 const main = async () => {
   const client = new Client({ host: 'ws://0.0.0.0:3000' })
@@ -31,15 +26,12 @@ const main = async () => {
     request,
     next,
   }) => {
-    ws.on(
-        'channel',
-        async channel => {
-          await pipeline(
-              channel.readable.bind(channel),
-              channel.writable.bind(channel),
-          )
-        },
-    )
+    ws.on('channel', async channel => {
+      await pipeline(
+          channel.readable.bind(channel),
+          channel.writable.bind(channel),
+      )
+    })
     next()
   })
 
@@ -49,11 +41,7 @@ const main = async () => {
   const channel_a = client.open_channel() // noop
   const pass_through = channel_a.passthrough.bind(channel_a)
 
-  await pipeline(
-      read,
-      pass_through,
-      write,
-  )
+  await pipeline(read, pass_through, write)
 }
 
 main()

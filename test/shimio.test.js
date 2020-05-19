@@ -2,9 +2,7 @@
 import stream from 'stream'
 import { promisify } from 'util'
 import events from 'events'
-import {
-  Client, Server,
-} from '../src/index.js'
+import { Client, Server } from '../src/index.js'
 
 const pipeline = promisify(stream.pipeline)
 
@@ -12,7 +10,7 @@ let port = 20000
 
 export default class {
   static name = 'Shimio'
-  static timeout = 150
+  static timeout = 200
   // static loop = 3
 
   #server
@@ -26,10 +24,7 @@ export default class {
       while (++i <= count) {
         yield data
         await new Promise(resolve =>
-          setTimeout(
-              resolve,
-              Math.random() * 5 | 0,
-          ))
+          setTimeout(resolve, Math.random() * 5 | 0))
       }
     }
 
@@ -78,10 +73,7 @@ export default class {
 
     failing_client.raw_socket.send('yo')
 
-    await new Promise(resolve => setTimeout(
-        resolve,
-        10,
-    ))
+    await new Promise(resolve => setTimeout(resolve, 10))
 
     affirm({
       that   : 'a shimio server',
@@ -90,15 +82,9 @@ export default class {
       is     : false,
     })
 
-    await new Promise(resolve => setTimeout(
-        resolve,
-        10,
-    ))
+    await new Promise(resolve => setTimeout(resolve, 10))
     this.#server.stop()
-    await new Promise(resolve => setTimeout(
-        resolve,
-        10,
-    ))
+    await new Promise(resolve => setTimeout(resolve, 10))
 
     affirm({
       that   : 'a shimio client',
@@ -149,10 +135,7 @@ export default class {
 
     this.#client.raw_socket.send(Uint8Array.of(1))
 
-    await new Promise(resolve => setTimeout(
-        resolve,
-        10,
-    ))
+    await new Promise(resolve => setTimeout(resolve, 10))
 
     affirm({
       that   : 'a shimio server',
@@ -164,17 +147,11 @@ export default class {
     await this.#client.connect()
     this.#client.raw_socket.send(Uint8Array.of(4))
 
-    await new Promise(resolve => setTimeout(
-        resolve,
-        10,
-    ))
+    await new Promise(resolve => setTimeout(resolve, 10))
 
     this.#server.stop()
 
-    await new Promise(resolve => setTimeout(
-        resolve,
-        10,
-    ))
+    await new Promise(resolve => setTimeout(resolve, 10))
   }
 
   async ['Passing datas'](affirmation) {
@@ -183,9 +160,7 @@ export default class {
       objectMode: true,
     })
 
-    this.#server.use(({
-      ws, request,
-    }) => {
+    this.#server.use(({ ws, request }) => {
       affirm({
         that   : 'a middleware',
         should : `include a request object`,
@@ -198,12 +173,9 @@ export default class {
         because: ws.getBufferedAmount.constructor.name,
         is     : 'Function',
       })
-      ws.on(
-          'channel',
-          async channel => {
-            through.write(await channel.read())
-          },
-      )
+      ws.on('channel', async channel => {
+        through.write(await channel.read())
+      })
     })
 
     await this.#server.listen()
@@ -211,10 +183,7 @@ export default class {
 
     const room = this.#client.open_channel()
     const data = Uint8Array.of(120)
-    const read = events.once(
-        through,
-        'data',
-    )
+    const read = events.once(through, 'data')
 
     try {
       await room.write('yo')
@@ -251,15 +220,12 @@ export default class {
     const affirm = affirmation(max * 2)
 
     this.#server.use(({ ws }) => {
-      ws.on(
-          'channel',
-          async channel => {
-            await pipeline(
-                channel.readable.bind(channel),
-                channel.writable.bind(channel),
-            )
-          },
-      )
+      ws.on('channel', async channel => {
+        await pipeline(
+            channel.readable.bind(channel),
+            channel.writable.bind(channel),
+        )
+      })
     })
 
     await this.#server.listen()
@@ -300,9 +266,6 @@ export default class {
       ),
     ])
 
-    await new Promise(resolve => setTimeout(
-        resolve,
-        10,
-    ))
+    await new Promise(resolve => setTimeout(resolve, 10))
   }
 }

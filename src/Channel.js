@@ -19,18 +19,14 @@ export default class Channel extends EventTarget {
   #resolve_read
   #reject_read
 
-  constructor(
-      ws, id, log,
-  ) {
+  constructor(ws, id, log) {
     super()
     this.#id = id
     this.#ws = ws
     this.#log = log.extend(`channel<${ id }>`)
   }
 
-  on_message(
-      event, array,
-  ) {
+  on_message(event, array) {
     switch (event) {
       case FRAMES.ACK:
         this.#log('receiving ACK')
@@ -65,43 +61,26 @@ export default class Channel extends EventTarget {
     )
 
     this.#log('sending end')
-    this.#ws.send(
-        packet,
-        true,
-    )
+    this.#ws.send(packet, true)
   }
 
   async write(chunk) {
     const that = this
-    const ack = new Promise((
-        resolve, reject,
-    ) => {
+    const ack = new Promise((resolve, reject) => {
       that.#resolve_write = resolve
       that.#reject_write = reject
     })
-    const packet = serialize(
-        FRAMES.DATA,
-        this.#id,
-        chunk,
-    )
+    const packet = serialize(FRAMES.DATA, this.#id, chunk)
 
-    this.#log(
-        'sending datas %O',
-        chunk,
-    )
-    this.#ws.send(
-        packet,
-        true,
-    )
+    this.#log('sending datas %O', chunk)
+    this.#ws.send(packet, true)
     this.#log('awaiting ack')
     return ack
   }
 
   async read() {
     const that = this
-    const chunk = new Promise((
-        resolve, reject,
-    ) => {
+    const chunk = new Promise((resolve, reject) => {
       that.#resolve_read = resolve
       that.#reject_read = reject
     })
@@ -116,10 +95,7 @@ export default class Channel extends EventTarget {
       )
 
       this.#log('sending ack')
-      this.#ws.send(
-          packet,
-          true,
-      )
+      this.#ws.send(packet, true)
     }
 
     this.#log('listening for datas')
