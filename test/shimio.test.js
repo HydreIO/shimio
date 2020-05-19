@@ -178,7 +178,7 @@ export default class {
   }
 
   async ['Passing datas'](affirmation) {
-    const affirm = affirmation(4)
+    const affirm = affirmation(5)
     const through = new stream.PassThrough({
       objectMode: true,
     })
@@ -215,6 +215,17 @@ export default class {
         through,
         'data',
     )
+
+    try {
+      await room.write('yo')
+    } catch (error) {
+      affirm({
+        that   : 'writing non binary datas',
+        should : `throw an error`,
+        because: error.message,
+        is     : 'chunk yo is not an Uint8Array',
+      })
+    }
 
     room.write(data)
 

@@ -6,6 +6,9 @@ export default (
     // uInt8Array
     chunk,
 ) => {
+  if (!(chunk instanceof Uint8Array))
+    throw new Error(`chunk ${ chunk } is not an Uint8Array`)
+
   const buffer = new ArrayBuffer(5 + chunk.byteLength)
   const view = new DataView(buffer)
 

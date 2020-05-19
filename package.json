@@ -3,6 +3,7 @@
   "version": "1.2.2",
   "description": "A blazing fast websocket multiplexing curative therapy",
   "type": "module",
+  "main": "src/index.js",
   "scripts": {
     "test": "node test/index.js",
     "coverage": "c8 --check-coverage node test/index.js",
