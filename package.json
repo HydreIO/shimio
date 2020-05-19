@@ -1,6 +1,6 @@
 {
   "name": "@hydre/shimio",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "A blazing fast websocket multiplexing curative therapy",
   "type": "module",
   "main": "src/index.js",
