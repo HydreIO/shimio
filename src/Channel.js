@@ -3,7 +3,7 @@
 import { FRAMES } from './constant.js'
 import serialize from './serialize.js'
 
-export default class Channel extends EventTarget {
+export default class Channel {
   #id
   #ws
   #once_ack
@@ -20,7 +20,6 @@ export default class Channel extends EventTarget {
   #reject_read
 
   constructor(ws, id, log) {
-    super()
     this.#id = id
     this.#ws = ws
     this.#log = log.extend(`channel<${ id }>`)
@@ -67,6 +66,7 @@ export default class Channel extends EventTarget {
   async write(chunk) {
     const that = this
     const ack = new Promise((resolve, reject) => {
+      if (that.#closed) reject(new Error('Channel closed'))
       that.#resolve_write = resolve
       that.#reject_write = reject
     })
@@ -81,6 +81,7 @@ export default class Channel extends EventTarget {
   async read() {
     const that = this
     const chunk = new Promise((resolve, reject) => {
+      if (that.#closed) reject(new Error('Channel closed'))
       that.#resolve_read = resolve
       that.#reject_read = reject
     })
@@ -108,13 +109,19 @@ export default class Channel extends EventTarget {
         await this.write(chunk)
       this.#log('normal end writable')
       this.close()
-    } catch {}
+    } catch (error) {
+      if (error) this.#log(error)
+    }
+
+    this.#log('writable terminated ===================')
   }
 
   async *readable() {
     try {
       for (;;) yield await this.read()
     } catch {}
+
+    this.#log('readable terminated ===================')
   }
 
   async *passthrough(source) {

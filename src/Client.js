@@ -14,6 +14,7 @@ export default class ShimioClient {
 
   #pong_once
   #keep_alive
+  #cleanup_keep_alive
   #notify_close
   #on_message
 
@@ -51,16 +52,30 @@ export default class ShimioClient {
       const race_timeout = this.#timeout
 
       try {
+        let cleanup_race = () => {}
+
         await Promise.race([
           this.#pong_once(),
-          new Promise((_, reject) =>
-            setTimeout(reject, race_timeout)),
+          new Promise((_, reject) => {
+            const t = setTimeout(reject, race_timeout)
+
+            cleanup_race = () => {
+              clearTimeout(t)
+            }
+          }),
         ])
-        setTimeout(
+        cleanup_race()
+
+        const t = setTimeout(
             this.#keep_alive.bind(this),
             race_timeout,
         )
+
+        this.#cleanup_keep_alive = () => {
+          clearTimeout(t)
+        }
       } catch {
+        this.#cleanup_keep_alive?.()
         this.#ws?.terminate()
       }
     }
@@ -97,6 +112,7 @@ export default class ShimioClient {
 
   disconnect() {
     if (!this.connected) return
+    this.#cleanup_keep_alive?.()
     this.#ws.close(1000, 'closed by client')
     this.#ws = undefined
   }
