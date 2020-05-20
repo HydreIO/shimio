@@ -269,8 +269,7 @@ export default class {
                 because: Buffer.from(chunk).toString(),
                 is     : 'x',
               })
-              if (++count >= max / 2)
-                room_a.close()
+              if (++count >= max / 2) room_a.close()
             }
           },
       ),
