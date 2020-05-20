@@ -10,8 +10,8 @@ let port = 20_000
 
 export default class {
   static name = 'Shimio'
-  static timeout = 300
-  // static loop = 3
+  static timeout = 600
+  static loop = 1
 
   #server
   #client
@@ -29,22 +29,19 @@ export default class {
     }
 
   constructor(cleanup) {
-    const new_port = port++
+    const new_port = ++port
 
     this.#new_port = new_port
-
     this.#server = new Server({
       port       : new_port,
       uws_options: {
         idleTimeout: 1,
       },
     })
-
     this.#client = new Client({
       host   : `ws://0.0.0.0:${ new_port }`,
       timeout: 10,
     })
-
     cleanup(() => {
       this.#client.disconnect()
       this.#server.stop()
@@ -239,8 +236,8 @@ export default class {
   }
 
   async ['Dear Nagle'](affirmation) {
-    const max = 5
-    const affirm = affirmation(max * 2)
+    const max = 100
+    const affirm = affirmation(max + max / 2)
 
     this.#server.use(({ ws }) => {
       ws.on('channel', async channel => {
@@ -258,6 +255,8 @@ export default class {
     const room_b = this.#client.open_channel()
     const yield_data = this.#yield_later(max)
 
+    let count = 0
+
     await Promise.all([
       pipeline(
           yield_data(Uint8Array.of(120)),
@@ -270,6 +269,8 @@ export default class {
                 because: Buffer.from(chunk).toString(),
                 is     : 'x',
               })
+              if (++count >= max / 2)
+                room_a.close()
             }
           },
       ),
