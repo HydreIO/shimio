@@ -237,14 +237,26 @@ export default class {
 
   async ['Dear Nagle'](affirmation) {
     const max = 100
-    const affirm = affirmation(max + max / 2)
+    const affirm = affirmation(2 + max + max / 2)
 
     this.#server.use(({ ws }) => {
       ws.on('channel', async channel => {
+        const cleanup = new Promise(resolve => {
+          channel.cleanup(() => {
+            affirm({
+              that   : 'a shimio channel',
+              should : `will be cleaned up before end`,
+              because: !resolve(),
+              is     : true,
+            })
+          })
+        })
+
         await pipeline(
             channel.readable.bind(channel),
             channel.writable.bind(channel),
         )
+        await cleanup
       })
     })
 
@@ -288,6 +300,8 @@ export default class {
           },
       ),
     ])
+
+    room_b.close()
 
     await new Promise(resolve => setTimeout(resolve, 10))
   }

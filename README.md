@@ -53,6 +53,9 @@ const main = async () => {
     ws.on(
         'channel',
         async channel => {
+          channel.cleanup(() => {
+            console.log('the client closed the channel')
+          })
           await pipeline(
               channel.readable.bind(channel),
               channel.writable.bind(channel),

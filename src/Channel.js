@@ -19,28 +19,35 @@ export default class Channel {
   #resolve_read
   #reject_read
 
+  #cleanup
+
   constructor(ws, id, log) {
     this.#id = id
     this.#ws = ws
     this.#log = log.extend(`channel<${ id }>`)
   }
 
+  cleanup(f) {
+    this.#cleanup = f
+  }
+
   on_message(event, array) {
     switch (event) {
       case FRAMES.ACK:
         this.#log('receiving ACK')
-        this.#resolve_write()
+        this.#resolve_write?.()
         break
 
       case FRAMES.DATA:
         this.#log('receiving DATA')
-        this.#resolve_read(array)
+        this.#resolve_read?.(array)
         break
 
       case FRAMES.END:
         this.#log('receiving END')
-        this.#reject_read()
-        this.#reject_write()
+        this.#cleanup?.()
+        this.#reject_read?.(new Error('received END'))
+        this.#reject_write?.(new Error('received END'))
         break
 
       // no default
@@ -50,8 +57,8 @@ export default class Channel {
   close() {
     if (this.#closed) return
     this.#closed = true
-    this.#reject_read?.()
-    this.#reject_write?.()
+    this.#reject_read?.(new Error('Channel closed'))
+    this.#reject_write?.(new Error('Channel closed'))
 
     const packet = serialize(
         FRAMES.END,
