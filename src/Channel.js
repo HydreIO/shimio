@@ -50,8 +50,8 @@ export default class Channel {
   close() {
     if (this.#closed) return
     this.#closed = true
-    this.#reject_read()
-    this.#reject_write()
+    this.#reject_read?.()
+    this.#reject_write?.()
 
     const packet = serialize(
         FRAMES.END,
@@ -109,9 +109,7 @@ export default class Channel {
         await this.write(chunk)
       this.#log('normal end writable')
       this.close()
-    } catch (error) {
-      if (error) this.#log(error)
-    }
+    } catch { }
 
     this.#log('writable terminated ===================')
   }

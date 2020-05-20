@@ -4,13 +4,14 @@
   "description": "A blazing fast websocket multiplexing curative therapy",
   "type": "module",
   "main": "src/index.js",
+  "target": "esnext",
   "scripts": {
-    "test": "node test/index.js",
-    "coverage": "c8 --check-coverage node test/index.js",
+    "test": "node --harmony-top-level-await test/index.js",
+    "coverage": "c8 --check-coverage node --harmony-top-level-await test/index.js",
     "lint": "prettier-eslint $PWD/\"**/*.js\" --print-width 60 --list-different && eslint --color .",
     "format": "prettier-eslint $PWD/\"**/*.js\" --print-width 60 --write",
     "postversion": "git push && git push --tags",
-    "example": "node example/index.js"
+    "example": "node --harmony-top-level-await example/index.js"
   },
   "repository": {
     "type": "git",
@@ -29,6 +30,14 @@
   "publishConfig": {
     "access": "public"
   },
+  "babel": {
+    "parserOpts": {
+      "allowAwaitOutsideFunction": true
+    },
+    "plugins": [
+      "@babel/plugin-proposal-class-properties"
+    ]
+  },
   "homepage": "https://github.com/hydreio/shimio#readme",
   "dependencies": {
     "debug": "^4.1.1",
@@ -36,9 +45,11 @@
     "uWebSockets.js": "github:uNetworking/uWebSockets.js#v17.4.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.9.6",
+    "@babel/plugin-proposal-class-properties": "^7.8.3",
     "@hydre/doubt": "^6.1.0",
     "@sidy/eslint-config-sidy": "^1.4.10",
-    "babel-eslint": "^10.1.0",
+    "babel-eslint": "^11.0.0-beta.2",
     "c8": "^7.1.2",
     "eslint": "^7.0.0",
     "eslint-plugin-unicorn": "^20.0.0",

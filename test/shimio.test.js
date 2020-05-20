@@ -52,7 +52,7 @@ export default class {
   }
 
   async invariants(affirmation) {
-    const affirm = affirmation(9)
+    const affirm = affirmation(11)
 
     await this.#server.listen()
     await this.#client.connect()
@@ -148,6 +148,29 @@ export default class {
     this.#client.raw_socket.send(Uint8Array.of(4))
 
     await new Promise(resolve => setTimeout(resolve, 10))
+
+    const elon_chan = this.#client.open_channel()
+
+    elon_chan.close()
+    elon_chan.close()
+
+    affirm({
+      that   : 'closing a channel 2 times',
+      should : `be a noop`,
+      because: this.#client.connected,
+      is     : false,
+    })
+
+    try {
+      await elon_chan.write(Uint8Array.of(4))
+    } catch (error) {
+      affirm({
+        that   : 'writing to a channel after his close',
+        should : `throw an error`,
+        because: error.message,
+        is     : 'Channel closed',
+      })
+    }
 
     this.#server.stop()
 

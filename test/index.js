@@ -14,17 +14,8 @@ globalThis.EventTarget = EventTarget
 // eslint-disable-next-line no-undef
 globalThis.Event = Event
 
-const main = async () => {
-  const Suite = (await import('./shimio.test.js')).default
+const { default: Suite } = await import('./shimio.test.js')
 
-  pipeline(
-      await doubt(Suite),
-      reporter(),
-      process.stdout,
-      error => {
-        if (error) console.error(error)
-      },
-  )
-}
-
-main()
+pipeline(await doubt(Suite), reporter(), process.stdout, error => {
+  if (error) console.error(error)
+})
