@@ -6,11 +6,11 @@ import { Client, Server } from '../src/index.js'
 
 const pipeline = promisify(stream.pipeline)
 
-let port = 20000
+let port = 20_000
 
 export default class {
   static name = 'Shimio'
-  static timeout = 200
+  static timeout = 300
   // static loop = 3
 
   #server

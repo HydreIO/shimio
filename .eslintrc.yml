@@ -13,3 +13,4 @@ parser: babel-eslint
 parserOptions:
   sourceType: module
   configFile: package.json
+  ecmaVersion: 11

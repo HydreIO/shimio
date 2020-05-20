@@ -35,7 +35,8 @@
       "allowAwaitOutsideFunction": true
     },
     "plugins": [
-      "@babel/plugin-proposal-class-properties"
+      "@babel/plugin-proposal-class-properties",
+      "@babel/plugin-proposal-numeric-separator"
     ]
   },
   "homepage": "https://github.com/hydreio/shimio#readme",
@@ -47,6 +48,7 @@
   "devDependencies": {
     "@babel/core": "^7.9.6",
     "@babel/plugin-proposal-class-properties": "^7.8.3",
+    "@babel/plugin-proposal-numeric-separator": "^7.8.3",
     "@hydre/doubt": "^6.1.0",
     "@sidy/eslint-config-sidy": "^1.4.10",
     "babel-eslint": "^11.0.0-beta.2",

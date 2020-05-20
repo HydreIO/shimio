@@ -16,6 +16,11 @@ globalThis.Event = Event
 
 const { default: Suite } = await import('./shimio.test.js')
 
-pipeline(await doubt(Suite), reporter(), process.stdout, error => {
-  if (error) console.error(error)
-})
+pipeline(
+    await doubt(Suite),
+    reporter(),
+    process.stdout,
+    error => {
+      if (error) console.error(error)
+    },
+)

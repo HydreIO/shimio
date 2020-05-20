@@ -109,7 +109,7 @@ export default class Channel {
         await this.write(chunk)
       this.#log('normal end writable')
       this.close()
-    } catch { }
+    } catch {}
 
     this.#log('writable terminated ===================')
   }
