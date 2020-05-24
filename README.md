@@ -36,14 +36,14 @@ const write = fs.createWriteStream('example/world.txt')
 const client = new Client({ host: 'ws://0.0.0.0:3000' })
 const server = Server({
   http_server  : http.createServer(new Koa().callback()), // optional
-  allow_upgrade: ({ request, socket, head }) => true, // auth
+  allow_upgrade: ({ request, socket, head, context }) => true, // auth
   timeout      : 30_000, // clients timeout
   ws_options   : { // see [WS](https://github.com/websockets/ws)
     path             : '/',
     perMessageDeflate: false,
     maxPayload       : 4096 * 4,
   },
-  on_socket(ws, request) {
+  on_socket({ socket, request, context }) {
     ws.on('channel', async channel => {
       await pipeline(
           channel.readable.bind(channel),

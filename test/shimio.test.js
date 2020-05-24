@@ -5,6 +5,10 @@ import events from 'events'
 import { Client, Server } from '../src/index.js'
 
 const pipeline = promisify(stream.pipeline)
+const default_allows = ({ context }) => {
+  context.hello = 'world'
+  return true
+}
 
 let port = 20_000
 
@@ -17,7 +21,7 @@ export default class {
   #client
   #new_port
   #on_channel
-  #allow_upgrade = () => true
+  #allow_upgrade = default_allows
 
   #yield_later = count =>
     async function *(data) {
@@ -35,12 +39,14 @@ export default class {
     const that = this
 
     this.#new_port = new_port
-
     this.#server = Server({
-      allow_upgrade: () => that.#allow_upgrade(),
-      on_socket    : sock => {
-        sock.on('channel', channel => {
-          that.#on_channel(channel)
+      allow_upgrade: (...parameters) => that.#allow_upgrade(...parameters),
+      on_socket    : ({ socket, context }) => {
+        socket.on('channel', channel => {
+          that.#on_channel({
+            channel,
+            context,
+          })
         })
       },
       timeout: 20,
@@ -73,11 +79,20 @@ export default class {
   }
 
   async invariants(affirmation) {
-    const affirm = affirmation(11)
+    const affirm = affirmation(12)
 
     await this.#server.listen({ port: this.#new_port })
-    await this.#client.connect()
+    this.#on_channel = ({ context }) => {
+      affirm({
+        that   : 'a shimio context',
+        should : `passthrough`,
+        because: context.hello,
+        is     : 'world',
+      })
+    }
 
+    await this.#client.connect()
+    this.#client.open_channel().write(Uint8Array.of(1))
     affirm({
       that   : 'a shimio client',
       should : `be able to connect to a shimio server`,
@@ -164,7 +179,7 @@ export default class {
       })
     }
 
-    this.#allow_upgrade = () => true
+    this.#allow_upgrade = default_allows
     await this.#client.connect()
     this.#client.raw_socket.send(Uint8Array.of(4))
     await new Promise(resolve => setTimeout(resolve, 10))
@@ -201,7 +216,7 @@ export default class {
       objectMode: true,
     })
 
-    this.#on_channel = async channel => {
+    this.#on_channel = async ({ channel }) => {
       through.write(await channel.read())
     }
 
@@ -242,7 +257,7 @@ export default class {
     const max = 60
     const affirm = affirmation(2 + max + max / 2)
 
-    this.#on_channel = async channel => {
+    this.#on_channel = async ({ channel }) => {
       const cleanup = new Promise(resolve => {
         channel.cleanup(() => {
           affirm({

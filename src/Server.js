@@ -28,10 +28,12 @@ export default ({
   http_server.on(
       'upgrade',
       async (request, socket, head) => {
+        const context = Object.create(null)
         const allowed = await allow_upgrade({
           request,
           socket,
           head,
+          context,
         })
 
         if (!allowed) {
@@ -40,12 +42,12 @@ export default ({
         }
 
         wss.handleUpgrade(request, socket, head, sock => {
-          wss.emit('connection', sock, request)
+          wss.emit('connection', sock, request, context)
         })
       },
   )
 
-  wss.on('connection', (sock, request) => {
+  wss.on('connection', (sock, request, context) => {
     sock.alive = true
 
     const channels = new Map()
@@ -70,7 +72,7 @@ export default ({
           const channel = new Channel(sock, channel_id)
 
           channels.set(channel_id, channel)
-          sock.emit('channel', channel, request)
+          sock.emit('channel', channel)
         }
 
         channels.get(channel_id).on_message(event, chunk)
@@ -88,7 +90,11 @@ export default ({
     sock.on('pong', () => {
       sock.alive = true
     })
-    on_socket(sock, request)
+    on_socket({
+      socket: sock,
+      request,
+      context,
+    })
   })
 
   const interval = setInterval(() => {
