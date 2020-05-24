@@ -239,7 +239,7 @@ export default class {
   }
 
   async ['Dear Nagle'](affirmation) {
-    const max = 100
+    const max = 60
     const affirm = affirmation(2 + max + max / 2)
 
     this.#on_channel = async channel => {
