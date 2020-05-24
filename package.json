@@ -41,7 +41,6 @@
   },
   "homepage": "https://github.com/hydreio/shimio#readme",
   "dependencies": {
-    "koa-compose": "^4.1.0",
     "ws": "^7.3.0"
   },
   "devDependencies": {
