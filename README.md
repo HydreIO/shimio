@@ -38,7 +38,7 @@ const server = Server({
   http_server  : http.createServer(new Koa().callback()), // optional
   // here `context` is a newly created empty object, use it to pass whatever you want inside
   // it will be passed inside `on_socket`
-  allow_upgrade: ({ request, socket, head, context }) => true, // auth
+  allow_upgrade: async ({ request, socket, head, context }) => true, // auth
   timeout      : 30_000, // clients timeout
   ws_options   : { // see [WS](https://github.com/websockets/ws)
     path             : '/',
