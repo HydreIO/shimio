@@ -16,6 +16,8 @@ export default class {
   #server
   #client
   #new_port
+  #on_channel
+  #allow_upgrade = () => true
 
   #yield_later = count =>
     async function *(data) {
@@ -30,35 +32,54 @@ export default class {
 
   constructor(cleanup) {
     const new_port = ++port
+    const that = this
 
     this.#new_port = new_port
-    this.#server = new Server({
-      port       : new_port,
-      uws_options: {
-        idleTimeout: 1,
-      },
+
+    this.#server = Server({
+      allow_upgrade: () => that.#allow_upgrade(),
+      on_channel   : channel => that.#on_channel(channel),
+      timeout      : 20,
     })
+
     this.#client = new Client({
       host   : `ws://0.0.0.0:${ new_port }`,
       timeout: 10,
     })
-    cleanup(() => {
+
+    cleanup(async () => {
       this.#client.disconnect()
-      this.#server.stop()
+      await this.#server.close()
+    })
+  }
+
+  async ['client timeout'](affirmation) {
+    const affirm = affirmation(1)
+
+    await this.#server.listen({ port: this.#new_port })
+    await this.#client.connect()
+    await this.#server.close()
+    await new Promise(resolve => setTimeout(resolve, 50))
+    affirm({
+      that   : 'a shimio client',
+      should : `timeout gracefully`,
+      because: this.#client.connected,
+      is     : false,
     })
   }
 
   async invariants(affirmation) {
     const affirm = affirmation(11)
 
-    await this.#server.listen()
+    await this.#server.listen({ port: this.#new_port })
     await this.#client.connect()
 
     affirm({
       that   : 'a shimio client',
       should : `be able to connect to a shimio server`,
-      because: this.#client.connected,
-      is     : true,
+      because:
+        this.#client.connected && this.#server.listening,
+      is: true,
     })
 
     const failing_client = new Client({
@@ -67,9 +88,7 @@ export default class {
     })
 
     await failing_client.connect()
-
     failing_client.raw_socket.send('yo')
-
     await new Promise(resolve => setTimeout(resolve, 10))
 
     affirm({
@@ -79,16 +98,7 @@ export default class {
       is     : false,
     })
 
-    await new Promise(resolve => setTimeout(resolve, 10))
-    this.#server.stop()
-    await new Promise(resolve => setTimeout(resolve, 10))
-
-    affirm({
-      that   : 'a shimio client',
-      should : `be disconnected when the server is closed`,
-      because: this.#client.connected,
-      is     : false,
-    })
+    failing_client.disconnect()
 
     const channel = this.#client.open_channel()
 
@@ -127,11 +137,8 @@ export default class {
       is     : 'AsyncGeneratorFunction',
     })
 
-    await this.#server.listen()
     await this.#client.connect()
-
     this.#client.raw_socket.send(Uint8Array.of(1))
-
     await new Promise(resolve => setTimeout(resolve, 10))
 
     affirm({
@@ -141,9 +148,21 @@ export default class {
       is     : false,
     })
 
+    this.#allow_upgrade = () => false
+    try {
+      await this.#client.connect()
+    } catch (error) {
+      affirm({
+        that   : 'a shimio server',
+        should : `refuse upgrade if the condition is falsy`,
+        because: error.message,
+        is     : 'socket hang up',
+      })
+    }
+
+    this.#allow_upgrade = () => true
     await this.#client.connect()
     this.#client.raw_socket.send(Uint8Array.of(4))
-
     await new Promise(resolve => setTimeout(resolve, 10))
 
     const elon_chan = this.#client.open_channel()
@@ -169,36 +188,20 @@ export default class {
       })
     }
 
-    this.#server.stop()
-
     await new Promise(resolve => setTimeout(resolve, 10))
   }
 
   async ['Passing datas'](affirmation) {
-    const affirm = affirmation(5)
+    const affirm = affirmation(2)
     const through = new stream.PassThrough({
       objectMode: true,
     })
 
-    this.#server.use(({ ws, request }) => {
-      affirm({
-        that   : 'a middleware',
-        should : `include a request object`,
-        because: !!request,
-        is     : true,
-      })
-      affirm({
-        that   : 'a middleware',
-        should : `include a ws object`,
-        because: ws.getBufferedAmount.constructor.name,
-        is     : 'Function',
-      })
-      ws.on('channel', async channel => {
-        through.write(await channel.read())
-      })
-    })
+    this.#on_channel = async channel => {
+      through.write(await channel.read())
+    }
 
-    await this.#server.listen()
+    await this.#server.listen({ port: this.#new_port })
     await this.#client.connect()
 
     const room = this.#client.open_channel()
@@ -216,16 +219,9 @@ export default class {
       })
     }
 
-    room.write(data)
+    room.write(data).catch(() => {})
 
     const [datas] = await read
-
-    affirm({
-      that   : 'a server',
-      should : `provide a list of clients`,
-      because: this.#server.clients.size,
-      is     : 1,
-    })
 
     affirm({
       that   : 'a client',
@@ -233,34 +229,35 @@ export default class {
       because: Buffer.from(datas).toString(),
       is     : 'x',
     })
+    room.close()
+    await new Promise(resolve => setTimeout(resolve, 10))
+    through.end()
   }
 
   async ['Dear Nagle'](affirmation) {
     const max = 100
     const affirm = affirmation(2 + max + max / 2)
 
-    this.#server.use(({ ws }) => {
-      ws.on('channel', async channel => {
-        const cleanup = new Promise(resolve => {
-          channel.cleanup(() => {
-            affirm({
-              that   : 'a shimio channel',
-              should : `will be cleaned up before end`,
-              because: !resolve(),
-              is     : true,
-            })
+    this.#on_channel = async channel => {
+      const cleanup = new Promise(resolve => {
+        channel.cleanup(() => {
+          affirm({
+            that   : 'a shimio channel',
+            should : `will be cleaned up before end`,
+            because: !resolve(),
+            is     : true,
           })
         })
-
-        await pipeline(
-            channel.readable.bind(channel),
-            channel.writable.bind(channel),
-        )
-        await cleanup
       })
-    })
 
-    await this.#server.listen()
+      await pipeline(
+          channel.readable.bind(channel),
+          channel.writable.bind(channel),
+      )
+      await cleanup
+    }
+
+    await this.#server.listen({ port: this.#new_port })
     await this.#client.connect()
 
     const room_a = this.#client.open_channel()

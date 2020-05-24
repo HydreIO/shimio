@@ -41,9 +41,8 @@
   },
   "homepage": "https://github.com/hydreio/shimio#readme",
   "dependencies": {
-    "debug": "^4.1.1",
     "koa-compose": "^4.1.0",
-    "uWebSockets.js": "github:uNetworking/uWebSockets.js#v17.6.0"
+    "ws": "^7.3.0"
   },
   "devDependencies": {
     "@babel/core": "^7.9.6",
@@ -56,7 +55,6 @@
     "eslint": "^7.1.0",
     "eslint-plugin-unicorn": "^20.0.0",
     "prettier-eslint-cli": "^5.0.0",
-    "tap-spec-emoji": "^6.1.2",
-    "ws": "^7.3.0"
+    "tap-spec-emoji": "^6.1.2"
   }
 }

@@ -4,44 +4,28 @@ import { promisify } from 'util'
 import fs from 'fs'
 
 const pipeline = promisify(stream.pipeline)
-const read = fs.createReadStream('example/foo.jpg', {
+const read = fs.createReadStream('example/hello.txt', {
   highWaterMark: 2000,
 })
-const write = fs.createWriteStream('example/bar.jpg')
-const main = async () => {
-  const client = new Client({ host: 'ws://0.0.0.0:3000' })
-  const server = new Server({
-    port       : 3000,
-    path       : '/',
-    uws_options: {
-      idleTimeout     : 30,
-      compression     : 0,
-      maxPayloadLength: 2048,
-    },
-  })
+const write = fs.createWriteStream('example/world.txt')
+const client = new Client({ host: 'ws://0.0.0.0:3000' })
+const server = Server({
+  allow_upgrade: () => true,
+  async on_channel(channel) {
+    await pipeline(
+        channel.readable.bind(channel),
+        channel.writable.bind(channel),
+    )
+  },
+  timeout: 20,
+})
 
-  server.use(({
-    ws,
-    // eslint-disable-next-line no-unused-vars
-    request,
-    next,
-  }) => {
-    ws.on('channel', async channel => {
-      await pipeline(
-          channel.readable.bind(channel),
-          channel.writable.bind(channel),
-      )
-    })
-    next()
-  })
+await server.listen(3000)
+await client.connect()
 
-  await server.listen()
-  await client.connect()
+const channel_a = client.open_channel() // noop
+const round_trip = channel_a.passthrough.bind(channel_a)
 
-  const channel_a = client.open_channel() // noop
-  const pass_through = channel_a.passthrough.bind(channel_a)
-
-  await pipeline(read, pass_through, write)
-}
-
-main()
+await pipeline(read, round_trip, write)
+client.disconnect()
+await server.close()

@@ -1,131 +1,133 @@
-import uws from 'uWebSockets.js'
 import parse from './parse.js'
 import Channel from './Channel.js'
-import compose from 'koa-compose'
-import { EventEmitter } from 'events'
+import ws from 'ws'
 import { SOCKET_CODES } from './constant.js'
-import debug from 'debug'
+import http from 'http'
 
-export default class ShimioServer {
-  #app
-  #port
-  #path
-  #socket
-  #uws_options
-  #closing
-  #middleware = []
-  #clients = new Set()
+const noop = () => {}
 
-  #log = debug('shimio').extend('server')
+export default ({
+  http_server = http.createServer(),
+  timeout = 30_000,
+  allow_upgrade = () => true,
+  on_channel = noop,
+  ws_options = {
+    path             : '/',
+    perMessageDeflate: false,
+    maxPayload       : 4096 * 4,
+  },
+} = {}) => {
+  // we prevent usage of those as it's up to the http server to decide
+  // @see https://github.com/websockets/ws/blob/master/doc/ws.md#new-websocketserveroptions-callback
+  const { host, port, ...options } = ws_options
+  const wss = new ws.Server({
+    ...options,
+    noServer: true,
+  })
 
-  constructor({
-    port = 3000,
-    path = '/',
-    uws_options = {
-      idleTimeout     : 30,
-      compression     : 0,
-      maxPayloadLength: 16384,
-    },
-  } = {}) {
-    this.#port = port
-    this.#path = path
-    this.#app = new uws.App()
-    this.#uws_options = uws_options
-  }
-
-  get clients() {
-    return this.#clients
-  }
-
-  use(middleware) {
-    this.#middleware.push(middleware)
-  }
-
-  async listen() {
-    const app = this.#app
-    const port = this.#port
-    const socket_stuct = await new Promise(resolve => {
-      app.listen(port, resolve)
-    })
-
-    if (socket_stuct) {
-      this.#socket = socket_stuct
-      this.#closing = false
-    } else throw new Error(`unable to listen on ${ port }`)
-
-    const that = this
-    const middleware = compose(this.#middleware)
-
-    this.#app.ws(this.#path, {
-      ...this.#uws_options,
-      async open(ws, request) {
-        if (that.#closing) ws.close()
-
-        const current = ws
-
-        that.#clients.add(current)
-        current.emitter = new EventEmitter()
-        current.channels = new Map()
-
-        await middleware({
-          ws: new Proxy(current.emitter, {
-            get(target, property) {
-              if (property in ws)
-                return Reflect.get(ws, property)
-
-              return Reflect.get(target, property)
-            },
-          }),
+  http_server.on(
+      'upgrade',
+      async (request, socket, head) => {
+        const allowed = await allow_upgrade({
           request,
+          socket,
+          head,
         })
-      },
-      close(ws) {
-        that.#clients.delete(ws)
-      },
-      async message(ws, message, binary) {
-        if (!that.#clients.has(ws)) return
-        if (!binary) {
-          that.#log('not binary, exit')
-          ws.end(SOCKET_CODES.CLOSE_UNSUPPORTED)
+
+        if (!allowed) {
+          socket.destroy()
           return
         }
 
-        try {
-          const { event, channel_id, chunk } = parse(message)
-          const { channels, emitter } = ws
-
-          that.#log('receiving %O', event)
-
-          if (!channels.has(channel_id)) {
-            const channel = new Channel(
-                ws,
-                channel_id,
-                that.#log,
-            )
-
-            channels.set(channel_id, channel)
-            emitter.emit('channel', channel)
-          }
-
-          channels.get(channel_id).on_message(event, chunk)
-        } catch (error) {
-          if (error.code) ws.end(error.code)
-          else ws.end(SOCKET_CODES.CLOSE_PROTOCOL_ERROR)
-        }
+        wss.handleUpgrade(request, socket, head, sock => {
+          wss.emit('connection', sock, request)
+        })
       },
-    })
-  }
+  )
 
-  disconnect_clients() {
-    this.#clients.forEach(ws => {
-      ws.close()
-    })
-  }
+  wss.on('connection', sock => {
+    sock.alive = true
 
-  stop() {
-    if (this.#closing) return
-    this.#closing = true
-    this.disconnect_clients()
-    uws.us_listen_socket_close(this.#socket)
-  }
+    const channels = new Map()
+    const terminate = sock.terminate.bind(sock)
+
+    sock.binaryType = 'arraybuffer'
+    sock.on('error', terminate)
+    sock.on('close', terminate)
+    sock.on('message', message => {
+      if (!(message instanceof ArrayBuffer)) {
+        sock.close(
+            SOCKET_CODES.CLOSE_UNSUPPORTED,
+            'not arrayBuffer',
+        )
+        return
+      }
+
+      try {
+        const { event, channel_id, chunk } = parse(message)
+
+        if (!channels.has(channel_id)) {
+          const channel = new Channel(sock, channel_id)
+
+          channels.set(channel_id, channel)
+          on_channel(channel)
+        }
+
+        channels.get(channel_id).on_message(event, chunk)
+      } catch (error) {
+        if (error.code)
+          sock.close(error.code, error.message)
+        else {
+          sock.close(
+              SOCKET_CODES.CLOSE_PROTOCOL_ERROR,
+              error.message,
+          )
+        }
+      }
+    })
+    sock.on('pong', () => {
+      sock.alive = true
+    })
+  })
+
+  const interval = setInterval(() => {
+    wss.clients.forEach(sock => {
+      /* c8 ignore next 6 */
+      // this is hardly testable.. it come from the
+      // official doc of WS
+      if (!sock.alive) {
+        sock.terminate()
+        return
+      }
+
+      sock.alive = false
+      sock.ping(noop)
+    })
+  }, timeout)
+
+  wss.on('close', () => clearInterval(interval))
+
+  return new Proxy(http_server, {
+    get(target, property, receiver) {
+      switch (property) {
+        case 'close':
+          clearInterval(interval)
+          wss.clients.forEach(sock => {
+            sock.terminate()
+          })
+          return () =>
+            new Promise(resolve => {
+              target.close(resolve)
+            })
+
+        case 'listen':
+          return (...parameters) =>
+            new Promise(resolve => {
+              target.listen(...parameters, resolve)
+            })
+        default:
+          return Reflect.get(target, property, receiver)
+      }
+    },
+  })
 }

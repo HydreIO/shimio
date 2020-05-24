@@ -9,7 +9,6 @@ export default class Channel {
   #once_ack
   #once_chunk
 
-  #log
   // we don't want to send an ack on the first read
   #first_read = true
   #closed
@@ -21,10 +20,9 @@ export default class Channel {
 
   #cleanup
 
-  constructor(ws, id, log) {
+  constructor(ws, id) {
     this.#id = id
     this.#ws = ws
-    this.#log = log.extend(`channel<${ id }>`)
   }
 
   cleanup(f) {
@@ -34,17 +32,14 @@ export default class Channel {
   on_message(event, array) {
     switch (event) {
       case FRAMES.ACK:
-        this.#log('receiving ACK')
         this.#resolve_write?.()
         break
 
       case FRAMES.DATA:
-        this.#log('receiving DATA')
         this.#resolve_read?.(array)
         break
 
       case FRAMES.END:
-        this.#log('receiving END')
         this.#cleanup?.()
         this.#reject_read?.(new Error('received END'))
         this.#reject_write?.(new Error('received END'))
@@ -66,7 +61,6 @@ export default class Channel {
         new Uint8Array(),
     )
 
-    this.#log('sending end')
     this.#ws.send(packet, true)
   }
 
@@ -79,9 +73,7 @@ export default class Channel {
     })
     const packet = serialize(FRAMES.DATA, this.#id, chunk)
 
-    this.#log('sending datas %O', chunk)
     this.#ws.send(packet, true)
-    this.#log('awaiting ack')
     return ack
   }
 
@@ -102,11 +94,9 @@ export default class Channel {
           new Uint8Array(),
       )
 
-      this.#log('sending ack')
       this.#ws.send(packet, true)
     }
 
-    this.#log('listening for datas')
     return chunk
   }
 
@@ -114,19 +104,14 @@ export default class Channel {
     try {
       for await (const chunk of source)
         await this.write(chunk)
-      this.#log('normal end writable')
       this.close()
     } catch {}
-
-    this.#log('writable terminated ===================')
   }
 
   async *readable() {
     try {
       for (;;) yield await this.read()
     } catch {}
-
-    this.#log('readable terminated ===================')
   }
 
   async *passthrough(source) {
