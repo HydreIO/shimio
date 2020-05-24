@@ -40,8 +40,9 @@ export default class {
 
     this.#new_port = new_port
     this.#server = Server({
-      allow_upgrade: (...parameters) => that.#allow_upgrade(...parameters),
-      on_socket    : ({ socket, context }) => {
+      allow_upgrade: (...parameters) =>
+        that.#allow_upgrade(...parameters),
+      on_socket: ({ socket, context }) => {
         socket.on('channel', channel => {
           that.#on_channel({
             channel,
