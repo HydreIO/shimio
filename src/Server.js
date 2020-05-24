@@ -10,7 +10,7 @@ export default ({
   http_server = http.createServer(),
   timeout = 30_000,
   allow_upgrade = () => true,
-  on_channel = noop,
+  on_socket = noop,
   ws_options = {
     path             : '/',
     perMessageDeflate: false,
@@ -45,7 +45,7 @@ export default ({
       },
   )
 
-  wss.on('connection', sock => {
+  wss.on('connection', (sock, request) => {
     sock.alive = true
 
     const channels = new Map()
@@ -70,7 +70,7 @@ export default ({
           const channel = new Channel(sock, channel_id)
 
           channels.set(channel_id, channel)
-          on_channel(channel)
+          sock.emit('channel', channel, request)
         }
 
         channels.get(channel_id).on_message(event, chunk)
@@ -88,6 +88,7 @@ export default ({
     sock.on('pong', () => {
       sock.alive = true
     })
+    on_socket(sock, request)
   })
 
   const interval = setInterval(() => {

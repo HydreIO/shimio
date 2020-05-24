@@ -38,8 +38,12 @@ export default class {
 
     this.#server = Server({
       allow_upgrade: () => that.#allow_upgrade(),
-      on_channel   : channel => that.#on_channel(channel),
-      timeout      : 20,
+      on_socket    : sock => {
+        sock.on('channel', channel => {
+          that.#on_channel(channel)
+        })
+      },
+      timeout: 20,
     })
 
     this.#client = new Client({

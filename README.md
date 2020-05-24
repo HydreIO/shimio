@@ -43,11 +43,13 @@ const server = Server({
     perMessageDeflate: false,
     maxPayload       : 4096 * 4,
   },
-  async on_channel(channel) {
-    await pipeline(
-        channel.readable.bind(channel),
-        channel.writable.bind(channel),
-    )
+  on_socket(ws, request) {
+    ws.on('channel', async channel => {
+      await pipeline(
+          channel.readable.bind(channel),
+          channel.writable.bind(channel),
+      )
+    })
   },
 })
 
