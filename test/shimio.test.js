@@ -15,7 +15,6 @@ let port = 20_000
 export default class {
   static name = 'Shimio'
   static timeout = 1000
-  static loop = 1
 
   #server
   #client
