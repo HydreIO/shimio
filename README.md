@@ -40,6 +40,7 @@ const server = Server({
   // it will be passed inside `on_socket`
   allow_upgrade: async ({ request, socket, head, context }) => true, // auth
   timeout      : 30_000, // clients timeout
+  channel_limit: 50, // kill clients that keep more than N openned channels
   ws_options   : { // see [WS](https://github.com/websockets/ws)
     path             : '/',
     perMessageDeflate: false,
