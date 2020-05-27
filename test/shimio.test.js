@@ -40,6 +40,7 @@ export default class {
 
     this.#new_port = new_port
     this.#server = Server({
+      channel_limit: 5,
       allow_upgrade: (...parameters) =>
         that.#allow_upgrade(...parameters),
       on_socket: ({ socket, context }) => {
@@ -61,6 +62,49 @@ export default class {
     cleanup(async () => {
       this.#client.disconnect()
       await this.#server.close()
+    })
+  }
+
+  async ['channel limit'](affirmation) {
+    const affirm = affirmation(2)
+
+    this.#on_channel = async ({ channel }) => {
+      await pipeline(
+          channel.readable.bind(channel),
+          channel.writable.bind(channel),
+      )
+    }
+
+    await this.#server.listen({ port: this.#new_port })
+    await this.#client.connect()
+
+    const client = this.#client
+    const chan = this.#client.open_channel.bind(this.#client)
+    const channels = [...new Array(7)].map(async () => {
+      const write = chan().write(Uint8Array.of(5))
+
+      await new Promise(resolve => setTimeout(resolve, 10))
+
+      if (!client.connected) throw new Error('disconnected')
+      await write
+    })
+
+    try {
+      await Promise.all(channels)
+    } catch (error) {
+      affirm({
+        that   : 'writing to a channel',
+        should : 'throw and error when too much channels',
+        because: error.message,
+        is     : 'disconnected',
+      })
+    }
+
+    affirm({
+      that   : 'opening too much channels',
+      should : 'kill the client',
+      because: this.#client.connected,
+      is     : false,
     })
   }
 

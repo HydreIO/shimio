@@ -89,7 +89,6 @@ export default class ShimioClient {
 
   async connect() {
     if (this.connected) return
-
     // globalThis environment should contain WebSocket
     // eslint-disable-next-line no-undef
     this.#ws = new WebSocket(this.#host)

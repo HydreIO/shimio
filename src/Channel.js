@@ -1,6 +1,6 @@
 // globalThis should contains stuff
 /* eslint-disable no-undef */
-import { FRAMES } from './constant.js'
+import { FRAMES, SOCKET_OPEN } from './constant.js'
 import serialize from './serialize.js'
 
 export default class Channel {
@@ -41,6 +41,7 @@ export default class Channel {
 
       case FRAMES.END:
         this.#cleanup?.()
+        if (this.#closed) break
         this.#reject_read?.(new Error('received END'))
         this.#reject_write?.(new Error('received END'))
         break
@@ -61,7 +62,8 @@ export default class Channel {
         new Uint8Array(),
     )
 
-    this.#ws.send(packet, true)
+    if (this.#ws.readyState === SOCKET_OPEN)
+      this.#ws.send(packet, true)
   }
 
   async write(chunk) {

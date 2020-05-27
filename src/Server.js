@@ -1,7 +1,7 @@
 import parse from './parse.js'
 import Channel from './Channel.js'
 import ws from 'ws'
-import { SOCKET_CODES } from './constant.js'
+import { SOCKET_CODES, FRAMES } from './constant.js'
 import http from 'http'
 
 const noop = () => {}
@@ -11,6 +11,7 @@ export default ({
   timeout = 30_000,
   allow_upgrade = () => true,
   on_socket = noop,
+  channel_limit = 50,
   ws_options = {
     path             : '/',
     perMessageDeflate: false,
@@ -69,6 +70,15 @@ export default ({
         const { event, channel_id, chunk } = parse(message)
 
         if (!channels.has(channel_id)) {
+          if (channels.size >= channel_limit) {
+            sock.close(
+                SOCKET_CODES.CLOSE_PROTOCOL_ERROR,
+                'too much channels',
+            )
+
+            return
+          }
+
           const channel = new Channel(sock, channel_id)
 
           channels.set(channel_id, channel)
@@ -76,6 +86,9 @@ export default ({
         }
 
         channels.get(channel_id).on_message(event, chunk)
+
+        if (event === FRAMES.END)
+          channels.delete(channel_id)
       } catch (error) {
         if (error.code)
           sock.close(error.code, error.message)
