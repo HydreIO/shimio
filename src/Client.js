@@ -11,9 +11,6 @@ export default class ShimioClient {
   #channel_count
   #channels
 
-  #pong_once
-  #keep_alive
-  #cleanup_keep_alive
   #notify_close
   #on_message
 
@@ -23,14 +20,6 @@ export default class ShimioClient {
 
     // awaiting ecma private method support
     // to move this inside prototype
-    this.#pong_once = async () => {
-      const ws = this.#ws
-
-      return new Promise(resolve => {
-        ws.addEventListener('pong', resolve, { once: true })
-      })
-    }
-
     this.#on_message = ({ data }) => {
       const { event, channel_id, chunk } = parse(data)
       const channel = this.#channels.get(channel_id)
@@ -40,41 +29,6 @@ export default class ShimioClient {
 
 
       channel.on_message(event, chunk)
-    }
-
-    this.#keep_alive = async () => {
-      if (!this.connected) return
-      this.#ws.ping()
-
-      const race_timeout = this.#timeout
-
-      try {
-        let cleanup_race = () => {}
-
-        await Promise.race([
-          this.#pong_once(),
-          new Promise((_, reject) => {
-            const t = setTimeout(reject, race_timeout)
-
-            cleanup_race = () => {
-              clearTimeout(t)
-            }
-          }),
-        ])
-        cleanup_race()
-
-        const t = setTimeout(
-            this.#keep_alive.bind(this),
-            race_timeout,
-        )
-
-        this.#cleanup_keep_alive = () => {
-          clearTimeout(t)
-        }
-      } catch {
-        this.#cleanup_keep_alive?.()
-        this.#ws?.terminate()
-      }
     }
   }
 
@@ -103,12 +57,10 @@ export default class ShimioClient {
       this.#ws.addEventListener('error', reject)
     })
     this.#channel_count = -1
-    this.#keep_alive()
   }
 
   disconnect() {
     if (!this.connected) return
-    this.#cleanup_keep_alive?.()
     this.#ws.close(1000, 'closed by client')
     this.#ws = undefined
   }
