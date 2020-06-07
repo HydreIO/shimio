@@ -90,8 +90,10 @@ export default class {
     })
 
     try {
-      for (const channel of channels)
-        if (!await channel) throw new Error('disconnected')
+      for (const channel of channels) {
+        if (!await channel)
+          throw new Error('disconnected')
+      }
     } catch (error) {
       affirm({
         that   : 'writing to a channel',
