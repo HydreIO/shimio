@@ -39,7 +39,7 @@ export default class {
 
     this.#new_port = new_port
     this.#server = Server({
-      channel_limit: 5,
+      channel_limit: 3,
       allow_upgrade: (...parameters) =>
         that.#allow_upgrade(...parameters),
       on_socket: ({ socket, context }) => {
@@ -79,7 +79,7 @@ export default class {
 
     const client = this.#client
     const chan = this.#client.open_channel.bind(this.#client)
-    const channels = [...new Array(7)].map(async () => {
+    const channels = [...new Array(4)].map(async () => {
       const write = chan().write(Uint8Array.of(5))
 
       await new Promise(resolve => setTimeout(resolve, 10))
