@@ -14,7 +14,7 @@ let port = 20_000
 
 export default class {
   static name = 'Shimio'
-  static timeout = 15000
+  static timeout = 1500
 
   #server
   #client
@@ -85,7 +85,9 @@ export default class {
       await new Promise(resolve => setTimeout(resolve, 10))
 
       if (!client.connected) return false
-      await write
+      await Promise.race([
+        write, new Promise(resolve => setTimeout(resolve, 100)),
+      ])
       return true
     })
 
