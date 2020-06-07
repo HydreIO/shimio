@@ -77,18 +77,17 @@ export default class {
     await this.#server.listen({ port: this.#new_port })
     await this.#client.connect()
 
-    const client = this.#client
     const chan = this.#client.open_channel.bind(this.#client)
     const channels = [...new Array(4)].map(async () => {
       const write = chan().write(Uint8Array.of(5))
 
       await new Promise(resolve => setTimeout(resolve, 10))
 
-      if (!client.connected) return false
-      await Promise.race([
-        write, new Promise(resolve => setTimeout(resolve, 100)),
+      return Promise.race([
+        write.then(() => true),
+        new Promise(resolve =>
+          setTimeout(() => resolve(false), 100)),
       ])
-      return true
     })
 
     try {
