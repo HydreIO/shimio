@@ -14,7 +14,7 @@ let port = 20_000
 
 export default class {
   static name = 'Shimio'
-  static timeout = 5000
+  static timeout = 1500
 
   #server
   #client
@@ -84,12 +84,14 @@ export default class {
 
       await new Promise(resolve => setTimeout(resolve, 10))
 
-      if (!client.connected) throw new Error('disconnected')
+      if (!client.connected) return false
       await write
+      return true
     })
 
     try {
-      await Promise.all(channels)
+      for (const channel of channels)
+        if (!await channel) throw new Error('disconnected')
     } catch (error) {
       affirm({
         that   : 'writing to a channel',
