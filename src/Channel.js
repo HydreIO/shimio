@@ -84,7 +84,8 @@ export default class Channel {
 
   async write(chunk) {
     if (this.#closed)
-      throw new Error('[shimio] Write after close.')
+      throw new Error(`[shimio] (${ this.#label }) Write after close.`)
+
 
     const ack_or_end = [
       this.#closing, Channel.#resolve_free_write(this),
@@ -94,13 +95,18 @@ export default class Channel {
 
     this.#awaiting_ack = true
     this.#ws.send(packet, true)
-    await ack
+
+    const is_end = await ack
+
     this.#awaiting_ack = false
+    return is_end
   }
 
   async read() {
     if (this.#closed)
-      throw new Error('[shimio] Read after close.')
+      throw new Error(`[shimio] (${ this.#label }) Read after close.`)
+
+
     this.#awaiting_datas = true
 
     const chunk_or_end = [
@@ -124,10 +130,8 @@ export default class Channel {
   }
 
   async writable(source) {
-    for await (const chunk of source) {
-      await this.write(chunk)
-      if (this.#closed) return
-    }
+    for await (const chunk of source)
+      if (!await this.write(chunk)) return
   }
 
   async *readable() {

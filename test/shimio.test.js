@@ -273,7 +273,7 @@ export default class {
         that   : 'writing to a channel after his close',
         should : `throw an error`,
         because: error.message,
-        is     : '[shimio] Write after close.',
+        is     : '[shimio] (client) Write after close.',
       })
     }
 
