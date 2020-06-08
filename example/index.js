@@ -9,8 +9,4 @@ globalThis.EventTarget = EventTarget
 // eslint-disable-next-line no-undef
 globalThis.Event = Event
 
-const main = async () => {
-  await import('./node.js')
-}
-
-main()
+await import('./node.js')
