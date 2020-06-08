@@ -128,7 +128,7 @@ export default class {
   }
 
   async invariants(affirmation) {
-    const affirm = affirmation(12)
+    const affirm = affirmation(13)
 
     await this.#server.listen({ port: this.#new_port })
     this.#on_channel = ({ context }) => {
@@ -141,7 +141,28 @@ export default class {
     }
 
     await this.#client.connect()
-    this.#client.open_channel().write(Uint8Array.of(1))
+
+    const a_channel = this.#client.open_channel()
+
+    a_channel.write(Uint8Array.of(1))
+    a_channel.read()
+    a_channel.read()
+
+    const b_channel = this.#client.open_channel()
+
+    setTimeout(() => {
+      b_channel.close()
+    }, 10)
+
+    for await (const chunk of b_channel.readable()) {
+      affirm({
+        that   : 'a shimio channel',
+        should : `return from a read operation when the channel is closed`,
+        because: chunk,
+        is     : undefined,
+      })
+    }
+
     affirm({
       that   : 'a shimio client',
       should : `be able to connect to a shimio server`,
@@ -202,7 +223,7 @@ export default class {
       that   : 'a shimio channel',
       should : `include a passthrough function`,
       because: channel.passthrough.constructor.name,
-      is     : 'AsyncGeneratorFunction',
+      is     : 'Function',
     })
 
     await this.#client.connect()
@@ -252,7 +273,7 @@ export default class {
         that   : 'writing to a channel after his close',
         should : `throw an error`,
         because: error.message,
-        is     : 'Channel closed',
+        is     : '[shimio] Write after close.',
       })
     }
 
@@ -304,25 +325,13 @@ export default class {
 
   async ['Dear Nagle'](affirmation) {
     const max = 60
-    const affirm = affirmation(2 + max + max / 2)
+    const affirm = affirmation(max * 1.5)
 
     this.#on_channel = async ({ channel }) => {
-      const cleanup = new Promise(resolve => {
-        channel.cleanup(() => {
-          affirm({
-            that   : 'a shimio channel',
-            should : `will be cleaned up before end`,
-            because: !resolve(),
-            is     : true,
-          })
-        })
-      })
-
       await pipeline(
           channel.readable.bind(channel),
           channel.writable.bind(channel),
       )
-      await cleanup
     }
 
     await this.#server.listen({ port: this.#new_port })
@@ -333,6 +342,7 @@ export default class {
     const yield_data = this.#yield_later(max)
 
     let count = 0
+    let count_2 = 0
 
     await Promise.all([
       pipeline(
@@ -346,7 +356,10 @@ export default class {
                 because: Buffer.from(chunk).toString(),
                 is     : 'x',
               })
-              if (++count >= max / 2) room_a.close()
+              if (++count >= max / 2) {
+                room_a.close()
+                return
+              }
             }
           },
       ),
@@ -361,13 +374,14 @@ export default class {
                 because: Buffer.from(chunk).toString(),
                 is     : 'y',
               })
+              if (++count_2 >= max) {
+                room_b.close()
+                return
+              }
             }
           },
       ),
     ])
-
-    room_b.close()
-
     await new Promise(resolve => setTimeout(resolve, 10))
   }
 }

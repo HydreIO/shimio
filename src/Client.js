@@ -67,7 +67,7 @@ export default class ShimioClient {
 
   open_channel() {
     const count = ++this.#channel_count
-    const channel = new Channel(this.#ws, count)
+    const channel = new Channel(this.#ws, count, 'client')
 
     this.#channels.set(count, channel)
     return channel

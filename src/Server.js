@@ -52,7 +52,12 @@ export default ({
     sock.alive = true
 
     const channels = new Map()
-    const terminate = sock.terminate.bind(sock)
+    const terminate = () => {
+      channels.forEach(channel => {
+        channel.close()
+      })
+      sock.terminate()
+    }
 
     sock.binaryType = 'arraybuffer'
     sock.on('error', terminate)
@@ -79,7 +84,11 @@ export default ({
             return
           }
 
-          const channel = new Channel(sock, channel_id)
+          const channel = new Channel(
+              sock,
+              channel_id,
+              'server',
+          )
 
           channels.set(channel_id, channel)
           sock.emit('channel', channel)
@@ -112,11 +121,12 @@ export default ({
 
   const interval = setInterval(() => {
     wss.clients.forEach(sock => {
-      /* c8 ignore next 6 */
+      /* c8 ignore next 7 */
       // this is hardly testable.. it come from the
       // official doc of WS
       if (!sock.alive) {
-        sock.terminate()
+        // close() instead of terminate() to allow channels cleanup
+        sock.close()
         return
       }
 
@@ -133,7 +143,7 @@ export default ({
         case 'close':
           clearInterval(interval)
           wss.clients.forEach(sock => {
-            sock.terminate()
+            sock.close()
           })
           return () =>
             new Promise(resolve => {

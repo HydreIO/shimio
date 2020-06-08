@@ -6,12 +6,12 @@
   "main": "src/index.js",
   "target": "esnext",
   "scripts": {
-    "test": "node --harmony-top-level-await test/index.js",
-    "coverage": "c8 --check-coverage node --harmony-top-level-await test/index.js",
+    "test": "node --harmony-top-level-await --harmony-private-methods test/index.js",
+    "coverage": "c8 --check-coverage node --harmony-top-level-await --harmony-private-methods test/index.js",
     "lint": "prettier-eslint $PWD/\"**/*.js\" --print-width 60 --list-different && eslint --color .",
     "format": "prettier-eslint $PWD/\"**/*.js\" --print-width 60 --write",
     "postversion": "git push && git push --tags",
-    "example": "node --harmony-top-level-await example/index.js"
+    "example": "node --harmony-top-level-await --harmony-private-methods example/index.js"
   },
   "repository": {
     "type": "git",
@@ -36,7 +36,8 @@
     },
     "plugins": [
       "@babel/plugin-proposal-class-properties",
-      "@babel/plugin-proposal-numeric-separator"
+      "@babel/plugin-proposal-numeric-separator",
+      "@babel/plugin-proposal-private-methods"
     ]
   },
   "homepage": "https://github.com/hydreio/shimio#readme",
@@ -47,6 +48,7 @@
     "@babel/core": "^7.10.2",
     "@babel/plugin-proposal-class-properties": "^7.10.1",
     "@babel/plugin-proposal-numeric-separator": "^7.10.1",
+    "@babel/plugin-proposal-private-methods": "^7.10.1",
     "@hydre/doubt": "^6.1.0",
     "@sidy/eslint-config-sidy": "^1.4.12",
     "babel-eslint": "^11.0.0-beta.2",
