@@ -1,7 +1,7 @@
 {
   "name": "@hydre/shimio",
   "version": "3.0.0",
-  "description": "Multiplexed WebSocket server with back-pressure handling (Nagle algorithm)",
+  "description": "A minimal multiplexed Websocket server and client",
   "type": "module",
   "target": "esnext",
   "scripts": {
