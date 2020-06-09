@@ -68,7 +68,7 @@ export default class {
     let index = 0
 
     while (++index < 5) await chan().write(Uint8Array.of(5))
-    await new Promise(resolve => setTimeout(resolve, 10))
+    await new Promise(resolve => setTimeout(resolve, 50))
     affirm({
       that   : 'opening too much channels',
       should : 'kill the client',
