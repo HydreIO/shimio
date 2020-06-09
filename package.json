@@ -46,7 +46,7 @@
   },
   "homepage": "https://github.com/hydreio/shimio#readme",
   "dependencies": {
-    "event-iterator": "git+https://github.com/rolftimmermans/event-iterator.git",
+    "event-iterator": "gist:465b44a8e6c7e05dc8c173e809c08a12",
     "ws": "^7.3.0"
   },
   "devDependencies": {

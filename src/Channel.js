@@ -2,9 +2,7 @@
 /* eslint-disable no-undef */
 import { FRAMES, SOCKET_OPEN } from './constant.js'
 import serialize from './serialize.js'
-import EI from 'event-iterator/lib/event-iterator.js'
-
-const { EventIterator } = EI
+import EventIterator from 'event-iterator'
 
 export default class Channel {
   #id
