@@ -34,7 +34,7 @@ import Client from '@hydre/shimio/client'
 
 const client = new Client({
     host: 'ws://0.0.0.0:3000',
-    channels_threshold = 4096,
+    channels_threshold: 4096,
   })
 ```
 
@@ -53,6 +53,11 @@ const baz = client.open_channel()
 await foo.write(Uint8Array.of(100))
 await bar.write(Uint8Array.of(42))
 await baz.write(Uint8Array.of(100))
+
+// cleanup your stuff
+foo.on_close(() => {
+  console.log('foo channel was closed')
+})
 
 for await const(chunk of bar.read)
   console.log(chunk) // Uint8Array<42>

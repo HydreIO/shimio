@@ -14,6 +14,7 @@ export default class Channel {
   #threshold
   #push
   #stop
+  #close_handler = () => {}
 
   constructor({ ws, id, label, threshold }) {
     this.#id = id
@@ -60,10 +61,17 @@ export default class Channel {
 
       case FRAMES.END:
         this.#stop?.()
+        this.#close_handler()
         this.#closed = true
         break
 
       // no default
+    }
+  }
+
+  on_close(fn) {
+    this.#close_handler = () => {
+      if (!this.#closed) fn()
     }
   }
 
@@ -72,6 +80,7 @@ export default class Channel {
    */
   close() {
     if (this.closed) return
+    this.#close_handler()
     this.#closed = true
     this.#stop?.()
     if (!this.socket_closed) {

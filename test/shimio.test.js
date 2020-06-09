@@ -52,6 +52,30 @@ export default class {
     })
   }
 
+  async ['channel close handler'](affirmation) {
+    const affirm = affirmation(1)
+
+    await this.#server.listen({ port: this.#new_port })
+    await this.#client.connect()
+
+    const channel = this.#client.open_channel()
+
+    let verify = 1
+
+    channel.on_close(() => {
+      affirm({
+        that   : 'a close handler',
+        should : 'be called when the channel is closed',
+        because: verify,
+        is     : 2,
+      })
+    })
+    verify = 2
+    channel.close()
+    verify = 3
+    channel.close()
+  }
+
   async ['channel limit'](affirmation) {
     const affirm = affirmation(1)
 
