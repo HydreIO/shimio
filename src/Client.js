@@ -7,16 +7,15 @@ import parse from './parse.js'
 export default class ShimioClient {
   #ws
   #host
-  #timeout
   #channel_count
   #channels
 
-  #notify_close
   #on_message
+  #channels_threshold
 
-  constructor({ host, timeout = 31_000 }) {
+  constructor({ host, channels_threshold = 4096 }) {
     this.#host = host
-    this.#timeout = timeout
+    this.#channels_threshold = channels_threshold
 
     // awaiting ecma private method support
     // to move this inside prototype
@@ -67,7 +66,12 @@ export default class ShimioClient {
 
   open_channel() {
     const count = ++this.#channel_count
-    const channel = new Channel(this.#ws, count, 'client')
+    const channel = new Channel({
+      ws       : this.#ws,
+      id       : count,
+      label    : 'client',
+      threshold: this.#channels_threshold,
+    })
 
     this.#channels.set(count, channel)
     return channel

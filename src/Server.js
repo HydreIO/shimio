@@ -12,6 +12,7 @@ export default ({
   allow_upgrade = () => true,
   on_socket = noop,
   channel_limit = 50,
+  channels_threshold = 4096,
   ws_options = {
     path             : '/',
     perMessageDeflate: false,
@@ -80,15 +81,15 @@ export default ({
                 SOCKET_CODES.CLOSE_PROTOCOL_ERROR,
                 'too much channels',
             )
-
             return
           }
 
-          const channel = new Channel(
-              sock,
-              channel_id,
-              'server',
-          )
+          const channel = new Channel({
+            ws       : sock,
+            id       : channel_id,
+            label    : 'server',
+            threshold: channels_threshold,
+          })
 
           channels.set(channel_id, channel)
           sock.emit('channel', channel)

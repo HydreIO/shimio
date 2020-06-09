@@ -1,10 +1,9 @@
 /* eslint-disable max-lines */
 import stream from 'stream'
-import { promisify } from 'util'
 import events from 'events'
-import { Client, Server } from '../src/index.js'
+import Client from '../src/Client.js'
+import Server from '../src/Server.js'
 
-const pipeline = promisify(stream.pipeline)
 const default_allows = ({ context }) => {
   context.hello = 'world'
   return true
@@ -21,17 +20,6 @@ export default class {
   #new_port
   #on_channel
   #allow_upgrade = default_allows
-
-  #yield_later = count =>
-    async function *(data) {
-      let i = 0
-
-      while (++i <= count) {
-        yield data
-        await new Promise(resolve =>
-          setTimeout(resolve, Math.random() * 5 | 0))
-      }
-    }
 
   constructor(cleanup) {
     const new_port = ++port
@@ -65,45 +53,22 @@ export default class {
   }
 
   async ['channel limit'](affirmation) {
-    const affirm = affirmation(2)
+    const affirm = affirmation(1)
 
     this.#on_channel = async ({ channel }) => {
-      await pipeline(
-          channel.readable.bind(channel),
-          channel.writable.bind(channel),
-      )
+      for await (const chunk of channel.read)
+        await channel.write(chunk)
     }
 
     await this.#server.listen({ port: this.#new_port })
     await this.#client.connect()
 
     const chan = this.#client.open_channel.bind(this.#client)
-    const channels = [...new Array(4)].map(async () => {
-      const write = chan().write(Uint8Array.of(5))
 
-      await new Promise(resolve => setTimeout(resolve, 10))
+    let index = 0
 
-      return Promise.race([
-        write.then(() => true),
-        new Promise(resolve =>
-          setTimeout(() => resolve(false), 100)),
-      ])
-    })
-
-    try {
-      for (const channel of channels) {
-        if (!await channel)
-          throw new Error('disconnected')
-      }
-    } catch (error) {
-      affirm({
-        that   : 'writing to a channel',
-        should : 'throw and error when too much channels',
-        because: error.message,
-        is     : 'disconnected',
-      })
-    }
-
+    while (++index < 5) await chan().write(Uint8Array.of(5))
+    await new Promise(resolve => setTimeout(resolve, 10))
     affirm({
       that   : 'opening too much channels',
       should : 'kill the client',
@@ -128,7 +93,7 @@ export default class {
   }
 
   async invariants(affirmation) {
-    const affirm = affirmation(13)
+    const affirm = affirmation(7)
 
     await this.#server.listen({ port: this.#new_port })
     this.#on_channel = ({ context }) => {
@@ -141,31 +106,13 @@ export default class {
     }
 
     await this.#client.connect()
-
-    const a_channel = this.#client.open_channel()
-
-    a_channel.write(Uint8Array.of(1))
-    a_channel.read()
-    a_channel.read()
-
-    const b_channel = this.#client.open_channel()
-
-    setTimeout(() => {
-      b_channel.close()
-    }, 10)
-
-    for await (const chunk of b_channel.readable()) {
-      affirm({
-        that   : 'a shimio channel',
-        should : `return from a read operation when the channel is closed`,
-        because: chunk,
-        is     : undefined,
-      })
-    }
+    await this.#client
+        .open_channel()
+        .write(Uint8Array.of(100))
 
     affirm({
       that   : 'a shimio client',
-      should : `be able to connect to a shimio server`,
+      should : 'be able to connect to a shimio server',
       because:
         this.#client.connected && this.#server.listening,
       is: true,
@@ -188,43 +135,6 @@ export default class {
     })
 
     failing_client.disconnect()
-
-    const channel = this.#client.open_channel()
-
-    affirm({
-      that   : 'a shimio channel',
-      should : `include a readable`,
-      because: channel.readable.constructor.name,
-      is     : 'AsyncGeneratorFunction',
-    })
-
-    affirm({
-      that   : 'a shimio channel',
-      should : `include a writable`,
-      because: channel.writable.constructor.name,
-      is     : 'AsyncFunction',
-    })
-
-    affirm({
-      that   : 'a shimio channel',
-      should : `include a read function`,
-      because: channel.read.constructor.name,
-      is     : 'AsyncFunction',
-    })
-
-    affirm({
-      that   : 'a shimio channel',
-      should : `include a write function`,
-      because: channel.write.constructor.name,
-      is     : 'AsyncFunction',
-    })
-
-    affirm({
-      that   : 'a shimio channel',
-      should : `include a passthrough function`,
-      because: channel.passthrough.constructor.name,
-      is     : 'Function',
-    })
 
     await this.#client.connect()
     this.#client.raw_socket.send(Uint8Array.of(1))
@@ -266,16 +176,14 @@ export default class {
       is     : false,
     })
 
-    try {
-      await elon_chan.write(Uint8Array.of(4))
-    } catch (error) {
-      affirm({
-        that   : 'writing to a channel after his close',
-        should : `throw an error`,
-        because: error.message,
-        is     : '[shimio] (client) Write after close.',
-      })
-    }
+    await elon_chan.write(Uint8Array.of(4))
+
+    affirm({
+      that   : 'writing to a channel after his close',
+      should : `be a noop`,
+      because: elon_chan.closed,
+      is     : true,
+    })
 
     await new Promise(resolve => setTimeout(resolve, 10))
   }
@@ -287,7 +195,8 @@ export default class {
     })
 
     this.#on_channel = async ({ channel }) => {
-      through.write(await channel.read())
+      for await (const chunk of channel.read)
+        through.write(chunk)
     }
 
     await this.#server.listen({ port: this.#new_port })
@@ -328,60 +237,57 @@ export default class {
     const affirm = affirmation(max * 1.5)
 
     this.#on_channel = async ({ channel }) => {
-      await pipeline(
-          channel.readable.bind(channel),
-          channel.writable.bind(channel),
-      )
+      for await (const chunk of channel.read)
+        await channel.write(chunk)
     }
 
     await this.#server.listen({ port: this.#new_port })
     await this.#client.connect()
 
+    const write = async ({ channel, datas, count }) => {
+      for (let i = 0; i < count; i++) {
+        await new Promise(resolve =>
+          setTimeout(resolve, Math.random() * 5 | 0))
+        await channel.write(datas)
+      }
+    }
+    const read = async ({ channel, char, count }) => {
+      let loop = 0
+
+      for await (const chunk of channel.read) {
+        affirm({
+          that   : 'datas',
+          should : `flow back to the channel ${ char }`,
+          because: Buffer.from(chunk).toString(),
+          is     : char,
+        })
+        if (++loop >= count) channel.close()
+      }
+    }
     const room_a = this.#client.open_channel()
     const room_b = this.#client.open_channel()
-    const yield_data = this.#yield_later(max)
-
-    let count = 0
-    let count_2 = 0
 
     await Promise.all([
-      pipeline(
-          yield_data(Uint8Array.of(120)),
-          room_a.passthrough.bind(room_a),
-          async source => {
-            for await (const chunk of source) {
-              affirm({
-                that   : 'datas',
-                should : 'flow back to the channel A',
-                because: Buffer.from(chunk).toString(),
-                is     : 'x',
-              })
-              if (++count >= max / 2) {
-                room_a.close()
-                return
-              }
-            }
-          },
-      ),
-      pipeline(
-          yield_data(Uint8Array.of(121)),
-          room_b.passthrough.bind(room_b),
-          async source => {
-            for await (const chunk of source) {
-              affirm({
-                that   : 'datas',
-                should : 'flow back to the channel B',
-                because: Buffer.from(chunk).toString(),
-                is     : 'y',
-              })
-              if (++count_2 >= max) {
-                room_b.close()
-                return
-              }
-            }
-          },
-      ),
+      write({
+        channel: room_a,
+        datas  : Uint8Array.of(120),
+        count  : max / 2,
+      }),
+      read({
+        channel: room_a,
+        char   : 'x',
+        count  : max / 2,
+      }),
+      write({
+        channel: room_b,
+        datas  : Uint8Array.of(121),
+        count  : max,
+      }),
+      read({
+        channel: room_b,
+        char   : 'y',
+        count  : max,
+      }),
     ])
-    await new Promise(resolve => setTimeout(resolve, 10))
   }
 }

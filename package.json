@@ -1,9 +1,8 @@
 {
   "name": "@hydre/shimio",
   "version": "2.2.18",
-  "description": "A blazing fast websocket multiplexing curative therapy",
+  "description": "Multiplexed WebSocket server with back-pressure handling (Nagle algorithm)",
   "type": "module",
-  "main": "src/index.js",
   "target": "esnext",
   "scripts": {
     "test": "node --harmony-top-level-await --harmony-private-methods test/index.js",
@@ -12,6 +11,10 @@
     "format": "prettier-eslint $PWD/\"**/*.js\" --print-width 60 --write",
     "postversion": "git push && git push --tags",
     "example": "node --harmony-top-level-await --harmony-private-methods example/index.js"
+  },
+  "exports": {
+    "./client": "./src/Client.js",
+    "./server": "./src/Server.js"
   },
   "repository": {
     "type": "git",
@@ -25,6 +28,7 @@
   "keywords": [
     "shimio",
     "websocket",
+    "server",
     "multiplexing"
   ],
   "publishConfig": {
@@ -42,6 +46,7 @@
   },
   "homepage": "https://github.com/hydreio/shimio#readme",
   "dependencies": {
+    "event-iterator": "git+https://github.com/rolftimmermans/event-iterator.git",
     "ws": "^7.3.0"
   },
   "devDependencies": {
