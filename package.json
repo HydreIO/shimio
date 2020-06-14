@@ -21,7 +21,7 @@
     "url": "git+https://github.com/hydreio/shimio.git"
   },
   "author": "Hydre",
-  "license": "MIT",
+  "license": "UNLICENSE",
   "bugs": {
     "url": "https://github.com/hydreio/shimio/issues"
   },
