@@ -40,11 +40,11 @@ export default class ShimioClient {
     return this.#ws.readyState === SOCKET_OPEN
   }
 
-  async connect() {
+  async connect(options = {}) {
     if (this.connected) return
     // globalThis environment should contain WebSocket
     // eslint-disable-next-line no-undef
-    this.#ws = new WebSocket(this.#host)
+    this.#ws = new WebSocket(this.#host, undefined, options)
     this.#ws.binaryType = 'arraybuffer'
     this.#channels = new Map()
     await new Promise((resolve, reject) => {

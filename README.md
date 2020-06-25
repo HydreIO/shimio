@@ -36,6 +36,12 @@ const client = new Client({
     host: 'ws://0.0.0.0:3000',
     channels_threshold: 4096,
   })
+
+// possible to pass an option object for testing in nodejs
+// see https://github.com/websockets/ws/blob/41b0f9b36749ca1498d22726d22f72233de1424a/lib/websocket.js#L445
+await client.connect({
+  headers: {}
+})
 ```
 
 open some channel (it's a noop so it's free)
@@ -72,7 +78,7 @@ import Server from '@hydre/shimio/server'
 const http_server = Server({
   http_server = http.createServer(),
   timeout = 30_000, // dropping unresponding clients
-  allow_upgrade = () => true, // authentication
+  allow_upgrade = ({ request, socket, head, context }) => true, // authentication
   on_socket = ({ socket, context }) => {
     // the client opened a channel (and wrote at least once)
     socket.on('channel', async channel => {
