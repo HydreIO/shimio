@@ -76,6 +76,7 @@ export default class ShimioClient {
         const retry_result = await that.#retry_strategy({
           error,
           attempts: that.#attempts,
+          client  : that,
         })
 
         // eslint-disable-next-line unicorn/prefer-number-properties
@@ -99,6 +100,7 @@ export default class ShimioClient {
       const retry_result = await that.#retry_strategy({
         error,
         attempts: that.#attempts,
+        client  : that,
       })
 
       // eslint-disable-next-line unicorn/prefer-number-properties
