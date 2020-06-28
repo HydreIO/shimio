@@ -35,6 +35,7 @@ import Client from '@hydre/shimio/client'
 const client = new Client({
     host: 'ws://0.0.0.0:3000',
     channels_threshold: 4096,
+    retry_strategy: ({ attempts, error }) => 100 // retry connection every 100ms
   })
 
 // possible to pass an option object for testing in nodejs

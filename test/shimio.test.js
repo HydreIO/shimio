@@ -42,8 +42,8 @@ export default class {
     })
 
     this.#client = new Client({
-      host   : `ws://0.0.0.0:${ new_port }`,
-      timeout: 10,
+      host          : `ws://0.0.0.0:${ new_port }`,
+      retry_strategy: () => {},
     })
 
     cleanup(async () => {
@@ -143,8 +143,9 @@ export default class {
     })
 
     const failing_client = new Client({
-      host   : `ws://0.0.0.0:${ this.#new_port }`,
-      timeout: 10,
+      host          : `ws://0.0.0.0:${ this.#new_port }`,
+      timeout       : 10,
+      retry_strategy: () => {},
     })
 
     await failing_client.connect()
@@ -210,6 +211,94 @@ export default class {
     })
 
     await new Promise(resolve => setTimeout(resolve, 10))
+  }
+
+  async ['Retry strategy'](affirmation) {
+    const affirm = affirmation(6)
+
+    try {
+      await new Client({
+        host: 'ws://0.0.0.0:4800',
+      }).connect()
+    } catch (error) {
+      affirm({
+        that   : 'a client with no retry strategy',
+        should : `end up giving up`,
+        because: error.message,
+        is     : 'connect ECONNREFUSED 0.0.0.0:4800',
+      })
+    }
+
+    const client = new Client({
+      host          : 'ws://0.0.0.0:4800',
+      retry_strategy: ({ attempts }) => {
+        if (attempts > 1) return undefined
+        affirm({
+          that   : 'a client loosing the connection',
+          should : `use the retry strategy`,
+          because: attempts,
+          is     : 1,
+        })
+        return 50
+      },
+    })
+
+    try {
+      await client.connect()
+    } catch (error) {
+      affirm({
+        that   : 'a client loosing the connection',
+        should : `end up giving up`,
+        because: error.message,
+        is     : 'connect ECONNREFUSED 0.0.0.0:4800',
+      })
+    }
+
+    client.disconnect()
+    await this.#server.listen({ port: 4800 })
+
+    const client_2 = new Client({
+      host          : 'ws://0.0.0.0:4800',
+      retry_strategy: ({ attempts }) => {
+        if (attempts) return undefined
+        affirm({
+          that   : 'a client loosing the connection',
+          should : `use the retry strategy`,
+          because: attempts,
+          is     : 0,
+        })
+        return 50
+      },
+    })
+
+    await client_2.connect()
+
+    const room = client_2.open_channel()
+
+    this.#on_channel = async ({ channel }) => {
+      for await (const chunk of channel.read) {
+        affirm({
+          that   : 'a client correctly connected',
+          should : `be able to send messages`,
+          because: Buffer.from(chunk).toString(),
+          is     : 'x',
+        })
+        break
+      }
+    }
+
+    await room.write(Uint8Array.of(120))
+    await this.#server.close()
+    await room.write(Uint8Array.of(120))
+    await this.#server.listen({ port: 4800 })
+
+    affirm({
+      that   : 'a client loosing the connection',
+      should : `correctly reconnect and do not throw an error`,
+      because: 0,
+      is     : 0,
+    })
+    await new Promise(resolve => setTimeout(resolve, 50))
   }
 
   async ['Passing datas'](affirmation) {

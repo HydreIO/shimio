@@ -136,7 +136,9 @@ export default ({
     })
   }, timeout)
 
-  wss.on('close', () => clearInterval(interval))
+  http_server.on('close', () => {
+    clearInterval(interval)
+  })
 
   return new Proxy(http_server, {
     get(target, property, receiver) {
