@@ -14,6 +14,7 @@ export default class ShimioClient {
   #channels_threshold
   #retry_strategy
   #attempts = 0
+  #listeners = new Set()
 
   constructor({
     host,
@@ -45,6 +46,10 @@ export default class ShimioClient {
   get connected() {
     if (!this.#ws) return false
     return this.#ws.readyState === SOCKET_OPEN
+  }
+
+  once_connect(handler) {
+    this.#listeners.add(handler)
   }
 
   async connect(options = {}) {
@@ -117,6 +122,10 @@ export default class ShimioClient {
       }
     })
     this.#channel_count = -1
+    this.#listeners.forEach(handler => {
+      handler()
+    })
+    this.#listeners.clear()
   }
 
   disconnect() {

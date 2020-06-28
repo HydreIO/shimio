@@ -77,7 +77,7 @@ export default class {
   }
 
   async ['channel limit'](affirmation) {
-    const affirm = affirmation(1)
+    const affirm = affirmation(2)
 
     this.#on_channel = async ({ channel }) => {
       for await (const chunk of channel.read)
@@ -85,6 +85,14 @@ export default class {
     }
 
     await this.#server.listen({ port: this.#new_port })
+    this.#client.once_connect(() => {
+      affirm({
+        that   : 'the connect listener',
+        should : 'be called once',
+        because: 0,
+        is     : 0,
+      })
+    })
     await this.#client.connect()
 
     const chan = this.#client.open_channel.bind(this.#client)
