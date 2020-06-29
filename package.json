@@ -1,6 +1,6 @@
 {
   "name": "@hydre/shimio",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "A minimal multiplexed Websocket server and client",
   "type": "module",
   "target": "esnext",
