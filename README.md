@@ -38,7 +38,7 @@ The client emit 3 events
 ```js
 import Client from '@hydre/shimio/client'
 
-const client = new Client({
+const client = Client({
     host: 'ws://0.0.0.0:3000',
     threshold: 4096,
     retry_strategy: attempts => 100 // retry connection every 100ms
