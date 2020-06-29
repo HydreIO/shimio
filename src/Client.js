@@ -1,10 +1,12 @@
 import Channel from './Channel.js'
 import { SOCKET_OPEN } from './constant.js'
 import parse from './parse.js'
+// polifylled by webpack or https://github.com/Gozala/events
+import { EventEmitter } from 'events'
 
 // can't define browser websocket in node
 // eslint-disable-next-line no-use-before-define
-export default class ShimioClient {
+export default class ShimioClient extends EventEmitter {
   #ws
   #host
   #channel_count
@@ -14,13 +16,13 @@ export default class ShimioClient {
   #channels_threshold
   #retry_strategy
   #attempts = 0
-  #listeners = new Set()
 
   constructor({
     host,
     channels_threshold = 4096,
     retry_strategy,
   }) {
+    super()
     this.#host = host
     this.#channels_threshold = channels_threshold
     this.#retry_strategy = retry_strategy
@@ -46,14 +48,6 @@ export default class ShimioClient {
   get connected() {
     if (!this.#ws) return false
     return this.#ws.readyState === SOCKET_OPEN
-  }
-
-  on_connect(handler) {
-    this.#listeners.add(handler)
-  }
-
-  off_connect(handler) {
-    this.#listeners.delete(handler)
   }
 
   async connect(options = {}) {
@@ -100,6 +94,7 @@ export default class ShimioClient {
       })
     })
     this.#ws.addEventListener('close', async event => {
+      that.emit('close')
       if (event.reason === 'closed by client') return
 
       const error = new Error('Client lost the connection')
@@ -126,9 +121,7 @@ export default class ShimioClient {
       }
     })
     this.#channel_count = -1
-    this.#listeners.forEach(handler => {
-      handler()
-    })
+    this.emit('open')
   }
 
   disconnect() {
@@ -139,6 +132,9 @@ export default class ShimioClient {
 
   open_channel() {
     const count = ++this.#channel_count
+
+    this.emit('channel', count)
+
     const channel = new Channel({
       ws       : this.#ws,
       id       : count,

@@ -29,6 +29,12 @@ npm install @hydre/shimio
 `channels_threshold` represent the maximum WebSocket `bufferedAmount` length
 before starting to delay write operations
 
+The client emit 3 events
+
+- `open` when connected
+- `close` when disconnected
+- `channel` when a new channel was openned
+
 ```js
 import Client from '@hydre/shimio/client'
 
@@ -37,10 +43,6 @@ const client = new Client({
     channels_threshold: 4096,
     retry_strategy: ({ attempts, error, client }) => 100 // retry connection every 100ms
   })
-
-const handler = () => {}
-client.on_connect(handler) // triggered when a client is connected (or reconnected)
-client.off_connect(handler) // remove the listener
 
 // possible to pass an option object for testing in nodejs
 // see https://github.com/websockets/ws/blob/41b0f9b36749ca1498d22726d22f72233de1424a/lib/websocket.js#L445
