@@ -48,7 +48,7 @@ export default class ShimioClient {
     return this.#ws.readyState === SOCKET_OPEN
   }
 
-  once_connect(handler) {
+  on_connect(handler) {
     this.#listeners.add(handler)
   }
 
@@ -129,7 +129,6 @@ export default class ShimioClient {
     this.#listeners.forEach(handler => {
       handler()
     })
-    this.#listeners.clear()
   }
 
   disconnect() {

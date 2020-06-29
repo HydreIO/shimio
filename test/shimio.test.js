@@ -85,16 +85,19 @@ export default class {
     }
 
     await this.#server.listen({ port: this.#new_port })
-    this.#client.once_connect(() => {
+
+    const handler = () => {
       affirm({
         that   : 'the connect listener',
         should : 'be called once',
         because: 0,
         is     : 0,
       })
-    })
+    }
+
+    this.#client.on_connect(handler)
     await this.#client.connect()
-    this.#client.off_connect(undefined)
+    this.#client.off_connect(handler)
 
     const chan = this.#client.open_channel.bind(this.#client)
 
