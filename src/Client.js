@@ -1,148 +1,132 @@
 import Channel from './Channel.js'
-import { SOCKET_OPEN } from './constant.js'
 import parse from './parse.js'
 // polifylled by webpack or https://github.com/Gozala/events
 import { EventEmitter } from 'events'
+import Debug from 'debug'
 
-// can't define browser websocket in node
-// eslint-disable-next-line no-use-before-define
-export default class ShimioClient extends EventEmitter {
-  #ws
-  #host
-  #channel_count
-  #channels
+const debug = Debug('shimio').extend('client')
 
-  #on_message
-  #channels_threshold
-  #retry_strategy
-  #attempts = 0
+export default ({ host, threshold = 4096, retry_strategy }) => {
+  const emitter = new EventEmitter()
+  const internal = new EventEmitter()
 
-  constructor({
-    host,
-    channels_threshold = 4096,
-    retry_strategy,
-  }) {
-    super()
-    this.#host = host
-    this.#channels_threshold = channels_threshold
-    this.#retry_strategy = retry_strategy
+  debug('new client created')
 
-    // awaiting ecma private method support
-    // to move this inside prototype
-    this.#on_message = ({ data }) => {
-      const { event, channel_id, chunk } = parse(data)
-      const channel = this.#channels.get(channel_id)
+  internal.on('connect', (options, attempts = 0) => {
+    debug('connecting client')
 
-      if (!channel)
-        throw new Error(`received unknown channel with id ${ channel_id }`)
-
-
-      channel.on_message(event, chunk)
-    }
-  }
-
-  get raw_socket() {
-    return this.#ws
-  }
-
-  get connected() {
-    if (!this.#ws) return false
-    return this.#ws.readyState === SOCKET_OPEN
-  }
-
-  async connect(options = {}) {
-    if (this.connected) return
-
-    const that = this
-
-    // globalThis environment should contain WebSocket
     // eslint-disable-next-line no-undef
-    this.#ws = new WebSocket(this.#host, undefined, options)
-    this.#attempts++
-    this.#ws.binaryType = 'arraybuffer'
-    this.#channels = new Map()
-    this.#ws.addEventListener(
-        'message',
-        this.#on_message.bind(this),
-    )
-    await new Promise((resolve, reject) => {
-      this.#ws.addEventListener('open', () => {
-        that.#attempts = 0
-        resolve()
-      })
-      this.#ws.addEventListener('error', async error => {
-        if (!that.#retry_strategy) {
-          reject(error)
-          return
-        }
+    const ws = new WebSocket(host, undefined, options)
+    const handle_error = () => {}
+    const handle_open = () => {
+      // eslint-disable-next-line no-param-reassign
+      attempts = 0
+      return emitter.emit('connected')
+    }
+    const channels = new Map()
+    const handle_message = ({ data }) => {
+      const { event, channel_id, chunk } = parse(data)
+      const channel = channels.get(channel_id)
 
-        const retry_result = await that.#retry_strategy({
-          error,
-          attempts: that.#attempts,
-          client  : that,
+      debug('handle message %O', {
+        event,
+        channel_id,
+        chunk,
+      })
+
+      if (channel) {
+        channel.message({
+          frame : event,
+          buffer: chunk,
         })
+      }
+    }
+
+    let channel_count = 0
+
+    const handle_channel = () => {
+      const id = ++channel_count
+
+      debug('handle channel %O', id)
+
+      const channel = Channel({
+        socket: ws,
+        id,
+        label : 'client',
+        threshold,
+      })
+
+      channels.set(id, channel)
+      emitter.emit('channel', channel)
+    }
+    const handle_disconnect = () => {
+      debug('handle disconnect')
+      channels.forEach(channel => {
+        channel.close()
+      })
+      channels.clear()
+      ws.close(4100, 'closed by client')
+    }
+    const handle_unexpected = async code => {
+      if (retry_strategy) {
+        const retry_result = await retry_strategy(attempts)
 
         // eslint-disable-next-line unicorn/prefer-number-properties
         if (!isNaN(retry_result)) {
+          debug('code<%O> | retrying in %O [%O]', code, retry_result, attempts)
           setTimeout(() => {
-            that.connect(options).then(resolve, reject)
+            internal.emit('connect', options, attempts + 1)
           }, retry_result)
-          return
-        }
-
-        reject(error)
-      })
-    })
-    this.#ws.addEventListener('close', async event => {
-      that.emit('close')
-      if (event.reason === 'closed by client') return
-
-      const error = new Error('Client lost the connection')
-
-      if (!that.#retry_strategy) throw error
-
-      const retry_result = await that.#retry_strategy({
-        error,
-        attempts: that.#attempts,
-        client  : that,
-      })
-
-      // eslint-disable-next-line unicorn/prefer-number-properties
-      if (!isNaN(retry_result)) {
-        setTimeout(() => {
-          that.disconnect()
-          that.connect(options).catch(({ message }) => {
-            console.error(
-                `Client lost the connection (retry failed)`,
-                message,
-            )
-          })
-        }, retry_result)
+        } else debug('giving up.. code: %O', code)
       }
-    })
-    this.#channel_count = -1
-    this.emit('open')
-  }
+    }
 
-  disconnect() {
-    if (!this.connected) return
-    this.#ws.close(1000, 'closed by client')
-    this.#ws = undefined
-  }
+    internal.on('disconnect', handle_disconnect)
+    internal.on('open_channel', handle_channel)
 
-  open_channel() {
-    const count = ++this.#channel_count
+    ws.binaryType = 'arraybuffer'
+    ws.addEventListener('message', handle_message)
+    ws.addEventListener('open', handle_open)
+    ws.addEventListener('error', handle_error)
+    ws.addEventListener(
+        'close',
+        async ({ code }) => {
+          debug('handle close %O', code)
+          ws.removeEventListener('open', handle_open)
+          ws.removeEventListener('message', handle_message)
+          ws.removeEventListener('error', handle_error)
+          internal.off('disconnect', handle_disconnect)
+          internal.off('open_channel', handle_channel)
+          if (code !== 4100) handle_unexpected(code)
+          emitter.emit('disconnected', code)
+        },
+        { once: true },
+    )
+  })
 
-    this.emit('channel', count)
+  return new Proxy(emitter, {
+    get(target, property, receiver) {
+      switch (property) {
+        case 'connect':
+          return options =>
+            new Promise(resolve => {
+              emitter.once('connected', resolve)
+              internal.emit('connect', options)
+            })
 
-    const channel = new Channel({
-      ws       : this.#ws,
-      id       : count,
-      label    : 'client',
-      threshold: this.#channels_threshold,
-    })
+        case 'disconnect':
+          return () => internal.emit('disconnect')
 
-    this.#channels.set(count, channel)
-    return channel
-  }
+        case 'open_channel':
+          return () =>
+            new Promise(resolve => {
+              emitter.once('channel', resolve)
+              internal.emit('open_channel')
+            })
+
+        default:
+          return Reflect.get(target, property, receiver)
+      }
+    },
+  })
 }
