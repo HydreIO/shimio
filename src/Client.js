@@ -52,6 +52,10 @@ export default class ShimioClient {
     this.#listeners.add(handler)
   }
 
+  off_connect(handler) {
+    this.#listeners.delete(handler)
+  }
+
   async connect(options = {}) {
     if (this.connected) return
 

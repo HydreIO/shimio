@@ -94,6 +94,7 @@ export default class {
       })
     })
     await this.#client.connect()
+    this.#client.off_connect(undefined)
 
     const chan = this.#client.open_channel.bind(this.#client)
 
