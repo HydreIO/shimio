@@ -25,6 +25,7 @@ export default ({ socket, id, label, threshold }) => {
       } else if (frame === FRAMES.END) {
         log('<-END')
         stop()
+        emitter.emit('close')
       }
     }
 
@@ -54,7 +55,10 @@ export default ({ socket, id, label, threshold }) => {
           }
 
         case 'close':
-          return () => internal.emit('close')
+          return () => {
+            internal.emit('close')
+            emitter.emit('close')
+          }
 
         case 'message':
           return payload => internal.emit('message', payload)

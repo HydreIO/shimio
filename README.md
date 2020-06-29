@@ -62,6 +62,8 @@ const baz = await client.open_channel()
 - write is an async function in which you have to pass an Uint8Array
 - read is an async Iterable
 
+A channel emit a `close` event
+
 ```js
 await foo.write(Uint8Array.of(100))
 await bar.write(Uint8Array.of(42))
