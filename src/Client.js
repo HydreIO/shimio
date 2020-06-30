@@ -2,6 +2,7 @@ import Channel from './Channel.js'
 import parse from './parse.js'
 // polifylled by webpack or https://github.com/Gozala/events
 import { EventEmitter } from 'events'
+import { SOCKET_OPEN } from './constant.js'
 import Debug from 'debug'
 
 const debug = Debug('shimio').extend('client')
@@ -10,13 +11,17 @@ export default ({ host, threshold = 4096, retry_strategy }) => {
   const emitter = new EventEmitter()
   const internal = new EventEmitter()
 
+  // eslint-disable-next-line init-declarations
+  let ws
+
   debug('new client created')
 
   internal.on('connect', (options, attempts = 0) => {
     debug('connecting client')
 
     // eslint-disable-next-line no-undef
-    const ws = new WebSocket(host, undefined, options)
+    ws = new WebSocket(host, undefined, options)
+
     const handle_error = () => {}
     const handle_open = () => {
       // eslint-disable-next-line no-param-reassign
@@ -97,7 +102,8 @@ export default ({ host, threshold = 4096, retry_strategy }) => {
           ws.removeEventListener('error', handle_error)
           internal.off('disconnect', handle_disconnect)
           internal.off('open_channel', handle_channel)
-          if (code !== 4100) handle_unexpected(code)
+          if (code === 4100) return
+          handle_unexpected(code)
           emitter.emit('disconnected', code)
         },
         { once: true },
@@ -106,10 +112,19 @@ export default ({ host, threshold = 4096, retry_strategy }) => {
 
   return new Proxy(emitter, {
     get(target, property, receiver) {
+      const is_connected = !!(ws?.readyState === SOCKET_OPEN)
+
       switch (property) {
+        case 'connected': return is_connected
+
         case 'connect':
           return options =>
             new Promise(resolve => {
+              if (is_connected) {
+                resolve()
+                return
+              }
+
               emitter.once('connected', resolve)
               internal.emit('connect', options)
             })

@@ -35,7 +35,7 @@ pipeline(through, reporter(), process.stdout, () => {})
 const doubt = Doubt({
   stdout: through,
   title : 'Shimio websocket',
-  calls : 42,
+  calls : 45,
 })
 const server_1 = Server({
   koa,
@@ -61,9 +61,25 @@ const client_2 = Client({
   host: with_port(5600),
 })
 
+
+doubt['A client is not connected before being connected (lol)']({
+  because: client_2.connected,
+  is     : false,
+})
+
 await server_1.listen(5600)
 await client_1.connect()
 await client_2.connect()
+
+doubt['A client is connected after being connected (yes i know)']({
+  because: client_2.connected,
+  is     : true,
+})
+
+doubt['Connecting a client twice is a noop']({
+  because: await client_1.connect(),
+  is     : undefined,
+})
 
 const read_write = ({ client_id, channel, char, count }) => [
   write_some({
@@ -132,6 +148,7 @@ const client_3 = Client({
         is     : 3,
       })
       if (retried === 2) {
+        await new Promise(resolve => setTimeout(resolve, 100))
         await server_1.close()
         return undefined
       }
