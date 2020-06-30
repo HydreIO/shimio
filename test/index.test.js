@@ -61,7 +61,6 @@ const client_2 = Client({
   host: with_port(5600),
 })
 
-
 doubt['A client is not connected before being connected (lol)']({
   because: client_2.connected,
   is     : false,

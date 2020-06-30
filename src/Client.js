@@ -115,7 +115,8 @@ export default ({ host, threshold = 4096, retry_strategy }) => {
       const is_connected = !!(ws?.readyState === SOCKET_OPEN)
 
       switch (property) {
-        case 'connected': return is_connected
+        case 'connected':
+          return is_connected
 
         case 'connect':
           return options =>
