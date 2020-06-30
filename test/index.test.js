@@ -139,6 +139,7 @@ const client_3 = Client({
   host          : with_port(5000),
   threshold     : 4096,
   retry_strategy: async count => {
+    client_3.connect()
     if (count === 3) {
       retried++
       await server_1.listen(5000)

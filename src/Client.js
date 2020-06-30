@@ -2,7 +2,7 @@ import Channel from './Channel.js'
 import parse from './parse.js'
 // polifylled by webpack or https://github.com/Gozala/events
 import { EventEmitter } from 'events'
-import { SOCKET_OPEN } from './constant.js'
+import { STATE } from './constant.js'
 import Debug from 'debug'
 
 const debug = Debug('shimio').extend('client')
@@ -13,6 +13,7 @@ export default ({ host, threshold = 4096, retry_strategy }) => {
 
   // eslint-disable-next-line init-declarations
   let ws
+  let retrying = false
 
   debug('new client created')
 
@@ -73,16 +74,22 @@ export default ({ host, threshold = 4096, retry_strategy }) => {
       ws.close(4100, 'closed by client')
     }
     const handle_unexpected = async code => {
-      if (retry_strategy) {
-        const retry_result = await retry_strategy(attempts)
+      try {
+        if (retry_strategy) {
+          retrying = true
 
-        // eslint-disable-next-line unicorn/prefer-number-properties
-        if (!isNaN(retry_result)) {
-          debug('code<%O> | retrying in %O [%O]', code, retry_result, attempts)
-          setTimeout(() => {
-            internal.emit('connect', options, attempts + 1)
-          }, retry_result)
-        } else debug('giving up.. code: %O', code)
+          const retry = await retry_strategy(attempts)
+
+          // eslint-disable-next-line unicorn/prefer-number-properties
+          if (!isNaN(retry)) {
+            debug('code<%O> | retrying in %O [%O]', code, retry, attempts)
+            setTimeout(() => {
+              internal.emit('connect', options, attempts + 1)
+            }, retry)
+          } else debug('giving up.. code: %O', code)
+        }
+      } finally {
+        retrying = false
       }
     }
 
@@ -112,22 +119,34 @@ export default ({ host, threshold = 4096, retry_strategy }) => {
 
   return new Proxy(emitter, {
     get(target, property, receiver) {
-      const is_connected = !!(ws?.readyState === SOCKET_OPEN)
-
       switch (property) {
         case 'connected':
-          return is_connected
+          return ws?.readyState === STATE.OPEN
 
         case 'connect':
           return options =>
             new Promise(resolve => {
-              if (is_connected) {
-                resolve()
+              if (retrying) {
+                emitter.once('connected', resolve)
                 return
               }
 
-              emitter.once('connected', resolve)
-              internal.emit('connect', options)
+              switch (ws?.readyState) {
+                /* c8 ignore next 4 */
+                // did not manage to reach this websocket state
+                case STATE.CONNECTING:
+                  emitter.once('connected', resolve)
+                  break
+
+                case STATE.OPEN:
+                  resolve()
+                  break
+
+                default:
+                  internal.emit('connect', options)
+                  emitter.once('connected', resolve)
+                  break
+              }
             })
 
         case 'disconnect':

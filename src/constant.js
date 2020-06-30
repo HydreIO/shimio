@@ -1,4 +1,9 @@
-export const SOCKET_OPEN = 1
+export const STATE = {
+  CONNECTING: 0,
+  OPEN      : 1,
+  CLOSING   : 2,
+  CLOSED    : 3,
+}
 export const FRAMES = {
   DATA: 1,
   END : 2,
