@@ -1,4 +1,4 @@
-import { FRAMES } from './constant.js'
+import { FRAMES, SOCKET_OPEN } from './constant.js'
 import serialize from './serialize.js'
 import { EventEmitter } from 'events'
 import EI from 'event-iterator/lib/event-iterator.js'
@@ -34,11 +34,8 @@ export default ({ socket, id, label, threshold }) => {
     return () => {
       internal.off('message', handle_message)
       internal.off('close', stop)
-      try {
+      if (socket.readyState === SOCKET_OPEN)
         socket.send(serialize(FRAMES.END, id, new Uint8Array()), true)
-        /* c8 ignore next 2 */
-        // ignoring the empty catch
-      } catch {}
     }
   })
 
@@ -51,7 +48,8 @@ export default ({ socket, id, label, threshold }) => {
         case 'write':
           return async chunk => {
             await drain()
-            socket.send(serialize(FRAMES.DATA, id, chunk), true)
+            if (socket.readyState === SOCKET_OPEN)
+              socket.send(serialize(FRAMES.DATA, id, chunk), true)
           }
 
         case 'close':
