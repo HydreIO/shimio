@@ -6,6 +6,7 @@ import { STATE } from './constant.js'
 import Debug from 'debug'
 
 const debug = Debug('shimio').extend('client')
+const handle_error = () => {}
 
 export default ({ host, threshold = 4096, retry_strategy }) => {
   const emitter = new EventEmitter()
@@ -23,7 +24,6 @@ export default ({ host, threshold = 4096, retry_strategy }) => {
     // eslint-disable-next-line no-undef
     ws = new WebSocket(host, undefined, options)
 
-    const handle_error = () => {}
     const handle_open = () => {
       // eslint-disable-next-line no-param-reassign
       attempts = 0
