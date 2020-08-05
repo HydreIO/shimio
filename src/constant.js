@@ -11,4 +11,5 @@ export const FRAMES = {
 export const SOCKET_CODES = {
   CLOSE_PROTOCOL_ERROR: 1002,
   CLOSE_UNSUPPORTED   : 1003,
+  CLOSE_BAN           : 4005,
 }

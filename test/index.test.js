@@ -35,7 +35,7 @@ pipeline(through, reporter(), process.stdout, () => {})
 const doubt = Doubt({
   stdout: through,
   title : 'Shimio websocket',
-  calls : 45,
+  calls : 46,
 })
 const server_1 = Server({
   koa,
@@ -53,6 +53,11 @@ const server_1 = Server({
     perMessageDeflate: false,
     maxPayload       : 4096 * 4,
   },
+  request_limit: {
+    max  : 50,
+    every: 1000,
+  },
+  time_between_connections: -1,
 })
 const client_1 = Client({
   host: with_port(5600),
@@ -187,6 +192,11 @@ const server_2 = Server({
     perMessageDeflate: false,
     maxPayload       : 4096 * 4,
   },
+  request_limit: {
+    max  : 50,
+    every: 1000,
+  },
+  time_between_connections: -1,
 })
 
 await server_2.listen(3500)
@@ -256,7 +266,7 @@ await new Promise(resolve => {
   ws_frame_2.addEventListener(
       'close',
       ({ code }) => {
-        doubt['A frame hacking client will be closed with a code 1003']({
+        doubt['A frame hacking client will be closed with a code 1002']({
           because: code,
           is     : 1002,
         })
@@ -289,11 +299,56 @@ client_5.on('disconnected', async code => {
 
 client_5.connect()
 
+const server_15 = Server({
+  koa,
+  timeout   : 30000,
+  on_upgrade: () => true,
+  on_socket : ({ socket }) => {
+    socket.on('channel', async channel => {
+      for await (const chunk of channel.read) await channel.write(chunk)
+    })
+  },
+  request_limit: {
+    max  : 1,
+    every: 1,
+  },
+  time_between_connections: -1,
+})
+
+await server_15.listen(6525)
+
+const client_15 = Client({
+  host: with_port(6525),
+})
+
+client_15.on('disconnected', async code => {
+  doubt['A spamming client will be dropped']({
+    because: code,
+    is     : 4005,
+  })
+  await server_15.close()
+})
+
+client_15.connect()
+
+const channel_15 = await client_15.open_channel()
+
+await write_some({
+  channel: channel_15,
+  datas  : Uint8Array.of(97),
+  count  : 5,
+})
+
 const server_4 = Server({
   koa,
   timeout      : 5,
   on_upgrade   : () => true,
   channel_limit: 2,
+  request_limit: {
+    max  : 50,
+    every: 1000,
+  },
+  time_between_connections: -1,
 })
 const client_6 = Client({
   host: with_port(4507),

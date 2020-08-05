@@ -34,12 +34,6 @@ export default ({ host, threshold = 4096, retry_strategy }) => {
       const { event, channel_id, chunk } = parse(data)
       const channel = channels.get(channel_id)
 
-      debug('handle message %O', {
-        event,
-        channel_id,
-        chunk,
-      })
-
       if (channel) {
         channel.message({
           frame : event,
@@ -102,8 +96,8 @@ export default ({ host, threshold = 4096, retry_strategy }) => {
     ws.addEventListener('error', handle_error)
     ws.addEventListener(
         'close',
-        async ({ code }) => {
-          debug('handle close %O', code)
+        async ({ code, reason }) => {
+          debug('shimio client closed %O (%O)', reason, code)
           ws.removeEventListener('open', handle_open)
           ws.removeEventListener('message', handle_message)
           ws.removeEventListener('error', handle_error)

@@ -4,9 +4,11 @@ import ws from 'ws'
 import http from 'http'
 import { SOCKET_CODES, FRAMES } from './constant.js'
 import Debug from 'debug'
+import LRU from 'lru_map'
 
 const debug = Debug('shimio').extend('server')
 const noop = () => {}
+const ban_ip = new LRU.LRUMap(50)
 
 export default ({
   koa,
@@ -20,12 +22,19 @@ export default ({
     perMessageDeflate: false,
     maxPayload       : 4096 * 4,
   },
+  request_limit = {
+    max  : 20,
+    every: 1000 * 10,
+  },
+  time_between_connections = 1000 * 30,
 } = {}) => {
   debug('creating server with options %O', {
     timeout,
     channel_limit,
     threshold,
     ws_options,
+    request_limit,
+    time_between_connections,
   })
 
   // we prevent usage of those as it's up to the http server to decide
@@ -36,6 +45,11 @@ export default ({
     ...options,
     noServer: true,
   })
+  const burst_interval = setInterval(() => {
+    wss.clients.forEach(client => {
+      client.sent_amount = 0
+    })
+  }, request_limit.every)
 
   http_server.on('upgrade', async (request, socket, head) => {
     const { address } = socket.address()
@@ -43,6 +57,8 @@ export default ({
     debug('upgrade request from %O', address)
 
     const context = Object.create(null)
+    const last_connection = ban_ip.get(address) || 0
+    const banned = last_connection + time_between_connections > Date.now()
     const allowed = await on_upgrade({
       request,
       socket,
@@ -50,11 +66,13 @@ export default ({
       context,
     })
 
-    if (!allowed) {
+    if (!allowed || banned) {
       debug('refused, the socket will be destroyed')
       socket.destroy()
       return
     }
+
+    ban_ip.set(address, Date.now())
 
     wss.handleUpgrade(request, socket, head, sock => {
       wss.emit('connection', sock, request, context, socket)
@@ -68,6 +86,7 @@ export default ({
     log('connected!')
 
     sock.alive = true
+    sock.sent_amount = 0
 
     const channels = new Map()
     const terminate = () => {
@@ -91,11 +110,14 @@ export default ({
       try {
         const { event, channel_id, chunk } = parse(message)
 
-        log('sent %O', {
-          event,
-          channel_id,
-          chunk,
-        })
+        sock.sent_amount++
+        if (sock.sent_amount >= request_limit.max) {
+          sock.close(
+              SOCKET_CODES.CLOSE_BAN,
+              `If you could stop spamming, that'd be great`,
+          )
+          return
+        }
 
         if (!channels.has(channel_id)) {
           if (channels.size >= channel_limit) {
@@ -161,6 +183,7 @@ export default ({
           return () =>
             new Promise(resolve => {
               debug('closing server..')
+              clearInterval(burst_interval)
               clearInterval(interval)
               wss.clients.forEach(sock => {
                 sock.close()
