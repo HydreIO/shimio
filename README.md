@@ -99,6 +99,11 @@ const server = Server({
     perMessageDeflate: false,
     maxPayload       : 4096 * 4,
   },
+  request_limit: { // 20 request max every 10s
+    max  : 20,
+    every: 1000 * 10,
+  },
+  time_between_connections: 1000 * 30, // min 30s between 2 connection for an ip
 })
 
 await server.listen(3000) // promisified for you folks
