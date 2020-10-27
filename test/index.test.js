@@ -16,7 +16,7 @@ const through = new PassThrough()
 const koa = new Koa()
 const with_port = port => `ws://127.0.0.1:${ port }`
 const write_some = async ({ channel, datas, count }) => {
-  for (let i = 0; i < count; i++) {
+  for (let index = 0; index < count; index++) {
     await new Promise(resolve => setTimeout(resolve, Math.random() * 5 | 0))
     await channel.write(datas)
   }
