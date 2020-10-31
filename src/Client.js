@@ -47,7 +47,7 @@ export default ({ host, threshold = 4096, retry_strategy }) => {
     const handle_channel = () => {
       const id = ++channel_count
 
-      debug('handle channel %O', id)
+      debug('channel count: %O', id)
 
       const channel = Channel({
         socket: ws,

@@ -19,11 +19,8 @@ export default ({ socket, id, label, threshold }) => {
   }
   const iterator = new EventIterator(({ push, stop }) => {
     const handle_message = ({ frame, buffer }) => {
-      if (frame === FRAMES.DATA) {
-        log('<- message received in channel [%O]', id)
-        push(buffer)
-      } else if (frame === FRAMES.END) {
-        log('<- the server closed the channel [%O]', id)
+      if (frame === FRAMES.DATA) push(buffer)
+      else if (frame === FRAMES.END) {
         stop()
         emitter.emit('close')
       }
