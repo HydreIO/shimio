@@ -128,7 +128,6 @@ export default ({
           const channel = Channel({
             socket: sock,
             id    : channel_id,
-            label : 'server',
             threshold,
           })
 

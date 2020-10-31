@@ -2,13 +2,10 @@ import { FRAMES, STATE } from './constant.js'
 import serialize from './serialize.js'
 import { EventEmitter } from 'events'
 import EI from 'event-iterator/lib/event-iterator.js'
-import Debug from 'debug'
 
-const debug = Debug('shimio').extend('channel')
 const EventIterator = typeof EI === 'function' ? EI : EI.EventIterator
 
-export default ({ socket, id, label, threshold }) => {
-  const log = debug.extend(label)
+export default ({ socket, id, threshold }) => {
   const internal = new EventEmitter()
   const emitter = new EventEmitter()
   const drain = async () => {

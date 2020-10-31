@@ -52,7 +52,6 @@ export default ({ host, threshold = 4096, retry_strategy }) => {
       const channel = Channel({
         socket: ws,
         id,
-        label : 'client',
         threshold,
       })
 
