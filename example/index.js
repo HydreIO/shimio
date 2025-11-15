@@ -1,4 +1,4 @@
-import ws from 'ws'
+import WebSocket from 'ws'
 // eslint-disable-next-line no-undef
-globalThis.WebSocket = ws
+globalThis.WebSocket = WebSocket
 await import('./node.js')

@@ -9,18 +9,34 @@
   <img src="https://img.shields.io/github/workflow/status/hydreio/shimio/CI?logo=Github&style=for-the-badge" />
 </p>
 
-<h3 align=center>A minimal multiplexed Websocket server and client</h3>
+<h3 align=center>A minimal multiplexed WebSocket server and client</h3>
 
 - [Install](#install)
+- [Requirements](#requirements)
+- [What's New in v5.0.0](#whats-new-in-v500)
 - [Use](#use)
   - [Client](#client)
   - [Server](#server)
+- [Migration from v4.x](#migration-from-v4x)
 
 ## Install
 
 ```sh
 npm install @hydre/shimio
 ```
+
+## Requirements
+
+- **Node.js**: >= 20.0.0
+- **ws**: v8.x (upgraded from v7.x)
+
+## What's New in v5.0.0
+
+- ✨ Upgraded to `ws` v8.18.0 (from v7.3.1)
+- 🚀 Node.js 20+ support with native private methods and class properties
+- 🧹 Removed Babel dependencies (no longer needed for modern Node.js)
+- 📦 Modernized development dependencies
+- 🔧 Simplified test scripts (removed `--harmony` flags)
 
 ## Use
 
@@ -109,3 +125,38 @@ const server = Server({
 await server.listen(3000) // promisified for you folks
 await server.close()
 ```
+
+
+## Migration from v4.x
+
+### Breaking Changes
+
+#### ws v8 Import Changes
+
+If you were importing `ws` directly in your code (not recommended, but if you did):
+
+**v4.x (ws v7):**
+```js
+import ws from 'ws'
+const wss = new ws.Server({ port: 3000 })
+globalThis.WebSocket = ws
+```
+
+**v5.0.0 (ws v8):**
+```js
+import { WebSocketServer } from 'ws'
+import WebSocket from 'ws'
+const wss = new WebSocketServer({ port: 3000 })
+globalThis.WebSocket = WebSocket
+```
+
+**Note:** If you only use `@hydre/shimio/client` and `@hydre/shimio/server`, no code changes needed! The ws v8 migration is handled internally.
+
+### Node.js Version
+
+Upgrade to Node.js >= 20.0.0 before upgrading shimio to v5.0.0.
+
+### No Other Breaking Changes
+
+The shimio API remains unchanged. All client and server APIs are backward compatible.
+

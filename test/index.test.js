@@ -2,7 +2,7 @@
 import Doubt from '@hydre/doubt'
 import reporter from 'tap-spec-emoji'
 import { pipeline, PassThrough } from 'stream'
-import ws from 'ws'
+import WebSocket from 'ws'
 import Koa from 'koa'
 import Server from '../src/Server.js'
 import Client from '../src/Client.js'
@@ -10,7 +10,7 @@ import Client from '../src/Client.js'
 // this should be allowed but it is a recent feature
 // will see to bump the lint config
 // eslint-disable-next-line no-undef
-globalThis.WebSocket = ws
+globalThis.WebSocket = WebSocket
 
 const through = new PassThrough()
 const koa = new Koa()

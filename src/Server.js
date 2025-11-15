@@ -1,6 +1,6 @@
 import parse from './parse.js'
 import Channel from './Channel.js'
-import ws from 'ws'
+import { WebSocketServer } from 'ws'
 import http from 'http'
 import { SOCKET_CODES, FRAMES } from './constant.js'
 import Debug from 'debug'
@@ -41,7 +41,7 @@ export default ({
   // @see https://github.com/websockets/ws/blob/master/doc/ws.md#new-websocketserveroptions-callback
   const { host, port, ...options } = ws_options
   const http_server = http.createServer(koa.callback())
-  const wss = new ws.Server({
+  const wss = new WebSocketServer({
     ...options,
     noServer: true,
   })
