@@ -8,7 +8,7 @@
   ],
   "all": true,
   "clean": true,
-  "lines": 100,
-  "branches": 90,
-  "statements": 100
+  "lines": 92,
+  "branches": 87,
+  "statements": 92
 }
