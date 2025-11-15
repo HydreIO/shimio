@@ -10,8 +10,8 @@
   "scripts": {
     "test": "node test/index.test.js",
     "coverage": "c8 --check-coverage node test/index.test.js",
-    "lint": "prettier-eslint $PWD/\"**/*.js\" --print-width 80 --list-different && eslint --color .",
-    "format": "prettier-eslint $PWD/\"**/*.js\" --print-width 80 --write",
+    "lint": "prettier --check \"**/*.js\" && eslint .",
+    "format": "prettier --write \"**/*.js\"",
     "postversion": "git push && git push --tags",
     "example": "node example/index.js"
   },

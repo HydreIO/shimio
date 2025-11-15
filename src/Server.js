@@ -1,14 +1,14 @@
-import parse from './parse.js'
-import Channel from './Channel.js'
-import { WebSocketServer } from 'ws'
-import http from 'http'
-import { SOCKET_CODES, FRAMES } from './constant.js'
-import Debug from 'debug'
-import LRU from 'lru_map'
+import parse from "./parse.js";
+import Channel from "./Channel.js";
+import { WebSocketServer } from "ws";
+import http from "http";
+import { SOCKET_CODES, FRAMES } from "./constant.js";
+import Debug from "debug";
+import LRU from "lru_map";
 
-const debug = Debug('shimio').extend('server')
-const noop = () => {}
-const ban_ip = new LRU.LRUMap(50)
+const debug = Debug("shimio").extend("server");
+const noop = () => {};
+const ban_ip = new LRU.LRUMap(50);
 
 export default ({
   koa,
@@ -18,188 +18,188 @@ export default ({
   channel_limit = 50,
   threshold = 4096,
   ws_options = {
-    path             : '/',
+    path: "/",
     perMessageDeflate: false,
-    maxPayload       : 4096 * 4,
+    maxPayload: 4096 * 4,
   },
   request_limit = {
-    max  : 20,
+    max: 20,
     every: 1000 * 10,
   },
   time_between_connections = 1000 * 30,
 } = {}) => {
-  debug('creating server with options %O', {
+  debug("creating server with options %O", {
     timeout,
     channel_limit,
     threshold,
     ws_options,
     request_limit,
     time_between_connections,
-  })
+  });
 
   // we prevent usage of those as it's up to the http server to decide
   // @see https://github.com/websockets/ws/blob/master/doc/ws.md#new-websocketserveroptions-callback
-  const { host, port, ...options } = ws_options
-  const http_server = http.createServer(koa.callback())
+  const { host, port, ...options } = ws_options;
+  const http_server = http.createServer(koa.callback());
   const wss = new WebSocketServer({
     ...options,
     noServer: true,
-  })
+  });
   const burst_interval = setInterval(() => {
-    wss.clients.forEach(client => {
-      client.sent_amount = 0
-    })
-  }, request_limit.every)
+    wss.clients.forEach((client) => {
+      client.sent_amount = 0;
+    });
+  }, request_limit.every);
 
-  http_server.on('upgrade', async (request, socket, head) => {
-    const { address } = socket.address()
+  http_server.on("upgrade", async (request, socket, head) => {
+    const { address } = socket.address();
 
-    debug('upgrade request from %O', address)
+    debug("upgrade request from %O", address);
 
-    const context = Object.create(null)
-    const last_connection = ban_ip.get(address) || 0
-    const banned = last_connection + time_between_connections > Date.now()
+    const context = Object.create(null);
+    const last_connection = ban_ip.get(address) || 0;
+    const banned = last_connection + time_between_connections > Date.now();
     const allowed = await on_upgrade({
       request,
       socket,
       head,
       context,
-    })
+    });
 
     if (!allowed || banned) {
-      debug('refused, the socket will be destroyed')
-      socket.destroy()
-      return
+      debug("refused, the socket will be destroyed");
+      socket.destroy();
+      return;
     }
 
-    ban_ip.set(address, Date.now())
+    ban_ip.set(address, Date.now());
 
-    wss.handleUpgrade(request, socket, head, sock => {
-      wss.emit('connection', sock, request, context, socket)
-    })
-  })
+    wss.handleUpgrade(request, socket, head, (sock) => {
+      wss.emit("connection", sock, request, context, socket);
+    });
+  });
 
-  wss.on('connection', (sock, request, context, socket) => {
-    const { address } = socket.address()
-    const log = debug.extend(address)
+  wss.on("connection", (sock, request, context, socket) => {
+    const { address } = socket.address();
+    const log = debug.extend(address);
 
-    log('connected!')
+    log("connected!");
 
-    sock.alive = true
-    sock.sent_amount = 0
+    sock.alive = true;
+    sock.sent_amount = 0;
 
-    const channels = new Map()
+    const channels = new Map();
     const terminate = () => {
-      log('terminating')
-      channels.forEach(channel => {
-        channel.close()
-      })
-      sock.terminate()
-    }
+      log("terminating");
+      channels.forEach((channel) => {
+        channel.close();
+      });
+      sock.terminate();
+    };
 
-    sock.binaryType = 'arraybuffer'
-    sock.on('error', terminate)
-    sock.on('close', terminate)
-    sock.on('message', message => {
+    sock.binaryType = "arraybuffer";
+    sock.on("error", terminate);
+    sock.on("close", terminate);
+    sock.on("message", (message) => {
       if (!(message instanceof ArrayBuffer)) {
-        log('sent and illegal buffer, closing')
-        sock.close(SOCKET_CODES.CLOSE_UNSUPPORTED, 'not arrayBuffer')
-        return
+        log("sent and illegal buffer, closing");
+        sock.close(SOCKET_CODES.CLOSE_UNSUPPORTED, "not arrayBuffer");
+        return;
       }
 
       try {
-        const { event, channel_id, chunk } = parse(message)
+        const { event, channel_id, chunk } = parse(message);
 
-        sock.sent_amount++
+        sock.sent_amount++;
         if (sock.sent_amount >= request_limit.max) {
           sock.close(
-              SOCKET_CODES.CLOSE_BAN,
-              `If you could stop spamming, that'd be great`,
-          )
-          return
+            SOCKET_CODES.CLOSE_BAN,
+            `If you could stop spamming, that'd be great`,
+          );
+          return;
         }
 
         if (!channels.has(channel_id)) {
           if (channels.size >= channel_limit) {
-            sock.close(SOCKET_CODES.CLOSE_PROTOCOL_ERROR, 'too much channels')
-            return
+            sock.close(SOCKET_CODES.CLOSE_PROTOCOL_ERROR, "too much channels");
+            return;
           }
 
           const channel = Channel({
             socket: sock,
-            id    : channel_id,
+            id: channel_id,
             threshold,
-          })
+          });
 
-          log('new channel openned')
-          channels.set(channel_id, channel)
-          sock.emit('channel', channel)
+          log("new channel openned");
+          channels.set(channel_id, channel);
+          sock.emit("channel", channel);
         }
 
         channels.get(channel_id).message({
-          frame : event,
+          frame: event,
           buffer: chunk,
-        })
+        });
 
-        if (event === FRAMES.END) channels.delete(channel_id)
+        if (event === FRAMES.END) channels.delete(channel_id);
       } catch (error) {
-        log('sent error %O', error)
-        if (error.code) sock.close(error.code, error.message)
-        else sock.close(SOCKET_CODES.CLOSE_PROTOCOL_ERROR, error.message)
+        log("sent error %O", error);
+        if (error.code) sock.close(error.code, error.message);
+        else sock.close(SOCKET_CODES.CLOSE_PROTOCOL_ERROR, error.message);
       }
-    })
-    sock.on('pong', () => {
-      sock.alive = true
-    })
+    });
+    sock.on("pong", () => {
+      sock.alive = true;
+    });
     on_socket({
       socket: sock,
       request,
       context,
-    })
-  })
+    });
+  });
 
   const interval = setInterval(() => {
-    debug('controlling %O clients', wss.clients.size)
-    wss.clients.forEach(sock => {
+    debug("controlling %O clients", wss.clients.size);
+    wss.clients.forEach((sock) => {
       /* c8 ignore next 7 */
       if (!sock.alive) {
         // this is hardly testable.. it come from the
         // official doc of WS
         // close() instead of terminate() to allow channels cleanup
-        sock.close()
-        return
+        sock.close();
+        return;
       }
 
-      sock.alive = false
-      sock.ping(noop)
-    })
-  }, timeout)
+      sock.alive = false;
+      sock.ping(noop);
+    });
+  }, timeout);
 
   return new Proxy(http_server, {
     get(target, property, receiver) {
       switch (property) {
-        case 'close':
+        case "close":
           return () =>
-            new Promise(resolve => {
-              debug('closing server..')
-              clearInterval(burst_interval)
-              clearInterval(interval)
-              wss.clients.forEach(sock => {
-                sock.close()
-              })
-              target.close(resolve)
-            })
+            new Promise((resolve) => {
+              debug("closing server..");
+              clearInterval(burst_interval);
+              clearInterval(interval);
+              wss.clients.forEach((sock) => {
+                sock.close();
+              });
+              target.close(resolve);
+            });
 
-        case 'listen':
+        case "listen":
           return (...parameters) =>
-            new Promise(resolve => {
-              debug('listening..')
-              target.listen(...parameters, resolve)
-            })
+            new Promise((resolve) => {
+              debug("listening..");
+              target.listen(...parameters, resolve);
+            });
 
         default:
-          return Reflect.get(target, property, receiver)
+          return Reflect.get(target, property, receiver);
       }
     },
-  })
-}
+  });
+};
