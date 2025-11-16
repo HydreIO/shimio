@@ -125,6 +125,76 @@ await server.listen(3000) // promisified for you folks
 await server.close()
 ```
 
+### Testing Pattern: Lazy Server Startup
+
+For test environments, avoid auto-starting the server on module import. Instead, export startup/shutdown functions:
+
+```js
+// src/index.js - Application setup
+import Server from '@hydre/shimio/server'
+import Koa from 'koa'
+
+// Create server instance (does NOT start listening)
+export const server = Server({
+  koa: new Koa(),
+  on_upgrade: () => true,
+  on_socket: ({ socket }) => {
+    socket.on('channel', async channel => {
+      for await (const chunk of channel.read)
+        await channel.write(chunk)
+    })
+  },
+  ws_options: { path: '/ws' }
+})
+
+// Export start/shutdown functions
+export async function start() {
+  await server.listen(3000)
+  console.log('Server started on port 3000')
+}
+
+export async function shutdown() {
+  await server.close()
+  console.log('Server stopped')
+}
+```
+
+```js
+// src/server.js - Production entry point
+import { start } from './index.js'
+await start()
+```
+
+```js
+// test/server.test.js - Tests create their own instances
+import { describe, it, before, after } from 'node:test'
+import Server from '@hydre/shimio/server'
+import Koa from 'koa'
+
+describe('Server tests', () => {
+  let server
+
+  before(async () => {
+    server = Server({ koa: new Koa(), /* ... */ })
+    await server.listen(4000)
+  })
+
+  after(async () => {
+    await server.close()
+  })
+
+  it('should work', async () => {
+    // test logic
+  })
+})
+```
+
+**Key Points:**
+- The exported `server` instance is never started in test environment
+- Tests create and manage their own server instances in `before`/`after` hooks
+- Production uses a separate entry point that calls `start()`
+- This prevents tests from hanging due to open server connections
+
 
 ## Migration from v4.x
 
